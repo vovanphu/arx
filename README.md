@@ -50,6 +50,7 @@ During initialization, you will be prompted to choose a **Machine Role**:
 ## ✨ Features
 *   **🔐 Automated Secrets**: Pulls SSH Keys directly from Bitwarden (`ssh-key-master-ed25519` -> `~/.ssh/id_ed25519_dotfiles_master`).
 *   **🛡️ Namespaced Keys**: Uses explicit filenames to avoid conflicts with system defaults.
+*   **🔧 Local Overrides**: Supports `~/.ssh/config.local` for custom SSH hosts that are not managed by dotfiles.
 *   **🧠 Intelligent Scripts**:
     *   **Windows**: Auto-starts `ssh-agent`, handles `bw login/unlock/sync`.
     *   **WSL**: Implements **Socket Reuse** so all terminal tabs share one `ssh-agent` session.

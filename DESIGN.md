@@ -80,6 +80,7 @@ export EDITOR="nvim"
 A single command approach is prioritized for each platform via dedicated scripts:
 1.  **Windows**: `install.ps1` handles Winget check, Chezmoi installation, and local source linking.
 2.  **Debian**: `install.sh` handles binary installation and application of state.
+*   *Both scripts maintain feature parity (ANSI colors, error handling, idempotent logic).*
 
 ### 4.3. Unified Alias Architecture
 To maintain consistency, we use a shared template fragment for aliases. This allows defining an alias once and having it correctly translated to PowerShell syntax or Bash syntax.
@@ -101,6 +102,7 @@ Sensitive files (like `.ssh/config`) will be stored using Chezmoi's `private_` p
     *   `mobilelab` & `server`: Auto-pull `id_ed25519_server` (Server Ed25519 Key) from Bitwarden note `ssh-key-server-ed25519`.
     *   **Public Key Derivation**: To ensure consistency, Public Keys (`.pub`) are **not** stored in Bitwarden. Instead, a local `run_onchange_` script automatically derives them from the private keys (`ssh-keygen -y`) whenever the private key template changes.
     *   **Cross-Machine Access**: `workstation` automatically authorizes `commander` by pulling the Master Public Key from Bitwarden into `authorized_keys`.
+    *   **Local Overrides**: The managed `config` file includes `config.local*`, allowing users to maintain unmanaged configurations alongside managed ones.
 
 ## 6. Future Considerations
 *   **Package Management**: Linking `Brewfile`, `scoop export`, and `apt bundle` lists to the dotfiles lifecycle.
