@@ -1,6 +1,10 @@
 # .ssh/config - Managed by Chezmoi & Bitwarden
 # This file is generated. Do not edit manually.
 
+# Include local/unmanaged configurations (created manually by user)
+# We use a wildcard (*) so that if the file doesn't exist, SSH ignores it silently instead of erroring.
+Include config.local*
+
 # Common Configuration
 Host *
     AddKeysToAgent yes
