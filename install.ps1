@@ -49,6 +49,8 @@ if (-not $env:BW_SESSION) {
         if ($LASTEXITCODE -eq 0 -and $output) {
             $env:BW_SESSION = $output
             Write-Host "Vault unlocked for this session!" -ForegroundColor Green
+            Write-Host "Syncing Bitwarden vault..." -ForegroundColor Gray
+            bw sync
         } else {
             Write-Error "Failed to unlock Bitwarden. Secrets will NOT be provisioned."
         }

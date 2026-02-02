@@ -14,7 +14,13 @@ fi
 if ! command -v bw &> /dev/null; then
     echo "Installing Bitwarden CLI..."
     if command -v apt-get &> /dev/null; then
-        # Try apt/snap or direct download. Direct download is safer cross-distro.
+        # Ensure unzip is present
+        if ! command -v unzip &> /dev/null; then
+            echo "Installing unzip..."
+            sudo apt-get update && sudo apt-get install -y unzip
+        fi
+        
+        # Download Bitwarden
         curl -L "https://vault.bitwarden.com/download/?app=cli&platform=linux" -o bw.zip
         unzip -o bw.zip
         chmod +x bw
@@ -32,8 +38,23 @@ if [ -z "${BW_SESSION:-}" ]; then
     read -p "Bitwarden session not detected. Unlock vault now to provision secrets? (y/n) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        export BW_SESSION=$(bw unlock --raw)
-        echo "Vault unlocked!"
+        # Check login status
+        if bw status | grep -q "unauthenticated"; then
+             echo "You are not logged in to Bitwarden."
+             bw login
+        fi
+    
+        # Unlock and capture session
+        BW_SES=$(bw unlock --raw)
+        if [ $? -eq 0 ]; then
+             export BW_SESSION="$BW_SES"
+             echo "Vault unlocked!"
+             echo "Syncing Bitwarden vault..."
+             bw sync
+        else
+             echo "Failed to unlock vault. Secrets will not be provisioned."
+             exit 1
+        fi
     fi
 fi
 
