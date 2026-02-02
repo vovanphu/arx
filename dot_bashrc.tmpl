@@ -1,0 +1,59 @@
+# .bashrc - Managed by Chezmoi
+
+# Unified Aliases
+{{ range $alias, $command := .commonAliases -}}
+alias {{ $alias }}='{{ $command }}'
+{{ end -}}
+
+{{ range $alias, $command := .unixAliases -}}
+alias {{ $alias }}='{{ $command }}'
+{{ end -}}
+
+# Environment Variables
+export EDITOR={{ .editor | quote }}
+export MACHINE_ROLE={{ .role | quote }}
+
+# Welcome Message
+if [[ "$-" == *i* ]]; then
+{{- if eq .role "commander" }}
+    echo -e "\033[0;36mNuclear Football Active: Entering Commander Environment...\033[0m"
+{{- else if eq .role "workstation" }}
+    echo -e "\033[0;32mEntering Workstation Environment...\033[0m"
+{{- else if eq .role "mobilelab" }}
+    echo -e "\033[0;34mEntering Mobile Lab Environment...\033[0m"
+{{- else if eq .role "server" }}
+    echo -e "\033[0;33mEntering Server Environment... [SAFE MODE]\033[0m"
+{{- else }}
+    echo -e "\033[0;90mEntering Dotfiles Environment (Role: {{ .role }})...\033[0m"
+{{- end }}
+fi
+
+# Role-specific logic
+{{- if eq .role "server" }}
+# Add warning prompt for servers
+export PS1="\[\033[01;31m\][SERVER]\[\033[00m\] \u@\h:\w\$ "
+
+# Optimization: Limit History to save I/O and Disk
+export HISTSIZE=1000
+export HISTFILESIZE=2000
+{{- end }}
+
+# Bitwarden Helper: Auto-unlock if needed
+bw-unlock() {
+    if command -v bw &> /dev/null; then
+        if bw status | grep -q "locked"; then
+            echo "Bitwarden is locked. Unlocking..."
+            export BW_SESSION=$(bw unlock --raw)
+        fi
+    fi
+}
+
+# Starship Prompt
+if command -v starship &> /dev/null; then
+    eval "$(starship init bash)"
+fi
+
+# Add local bin to path
+if [ -d "$HOME/.local/bin" ] ; then
+    PATH="$HOME/.local/bin:$PATH"
+fi

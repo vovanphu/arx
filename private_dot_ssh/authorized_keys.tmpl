@@ -1,0 +1,10 @@
+{{- /* Only generate authorized_keys for Workstation, Server, or MobileLab */ -}}
+{{- if or (eq .role "workstation") (eq .role "mobilelab") (eq .role "server") -}}
+{{-   if (env "BW_SESSION") -}}
+{{-     $masterKey := (bitwarden "item" "ssh-key-master-ed25519") -}}
+{{-     if and $masterKey (hasKey $masterKey.fields "public_key") -}}
+# Master Key (Commander/Access from Laptop)
+{{ $masterKey.fields.public_key.value }}
+{{-     end -}}
+{{-   end -}}
+{{- end -}}

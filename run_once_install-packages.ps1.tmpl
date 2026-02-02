@@ -1,0 +1,52 @@
+{{- if eq .chezmoi.os "windows" -}}
+# run_once_install-packages.ps1.tmpl
+# This script runs only when the hash of this file changes.
+
+Write-Host "Starting Windows Package Installation via Winget..." -ForegroundColor Cyan
+
+$packages = @(
+    "Git.Git"
+)
+
+# Core Tools (Excluded from minimal 'server' role)
+if ("{{ .role }}" -ne "server") {
+    $packages += "Neovim.Neovim"
+    $packages += "BurntSushi.ripgrep.MSVC"
+    $packages += "junegunn.fzf"
+    $packages += "Starship.Starship"
+    $packages += "ajeetdsouza.zoxide"
+    
+    # Fonts are GUI related, usually not needed on headless server
+    Write-Host "Installing FiraCode Nerd Font..." -ForegroundColor Gray
+    winget install --id "NerdFonts.FiraCode" -e --silent --accept-package-agreements --accept-source-agreements
+}
+
+# Role-specific packages
+if ("{{ .role }}" -eq "commander") {
+    # Commander Tools
+    # $packages += "Kubernetes.kubectl" # Optional: CLI for K8s clusters
+    # $packages += "Helm.Helm" # Optional: Package manager for K8s
+    $packages += "Microsoft.VisualStudioCode"
+}
+
+if ("{{ .role }}" -eq "workstation") {
+    # Workstation Tools
+    $packages += "Python.Python.3"
+    $packages += "Microsoft.VisualStudioCode"
+    $packages += "Microsoft.WSL"
+    $packages += "Docker.DockerDesktop"
+    # Enable SSH Server for remote access
+    $packages += "Microsoft.OpenSSH.Beta"
+}
+
+# Bitwarden CLI (Ensure it's present/updated)
+$packages += "Bitwarden.CLI"
+
+# Install packages
+foreach ($package in $packages) {
+    Write-Host "Checking/Installing $package..." -ForegroundColor Gray
+    winget install --id $package -e --silent --accept-package-agreements --accept-source-agreements
+}
+
+Write-Host "Windows Package Installation Complete!" -ForegroundColor Green
+{{- end -}}

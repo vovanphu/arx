@@ -1,0 +1,13 @@
+[user]
+    name = {{ .name }}
+    email = {{ .email }}
+
+[core]
+    autocrlf = {{ if eq .osid "windows" }}true{{ else }}input{{ end }}
+    editor = nvim
+
+[alias]
+    st = status
+    cm = commit
+    co = checkout
+    br = branch

@@ -1,0 +1,108 @@
+{{- if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+
+# run_once_install-packages.sh.tmpl
+# This script runs only when the hash of this file changes.
+
+set -eufo pipefail
+
+echo "Starting Linux Package Installation..."
+
+# Function to check if a command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Update package lists
+if command_exists apt-get; then
+    echo "Updating apt repositories..."
+    sudo apt-get update
+fi
+
+# Define minimal base packages (Must be lightweight)
+PACKAGES=(
+    git
+    curl
+)
+
+# Core Tools (Excluded from minimal 'server' role to save resources)
+if [[ "{{ .role }}" != "server" ]]; then
+    PACKAGES+=(
+        neovim
+        ripgrep
+        fzf
+        zoxide
+    )
+fi
+
+# Role-specific packages
+{{ if eq .role "commander" }}
+# Tools for The Commander (Control Center)
+PACKAGES+=(
+    ansible
+    # kubectl
+)
+{{ end }}
+
+{{ if eq .role "mobilelab" }}
+# Tools for Mobile Lab (Virtualization Host)
+PACKAGES+=(
+    qemu-kvm
+    libvirt-daemon-system
+    libvirt-clients
+    bridge-utils
+    virt-manager
+    htop
+    ncdu
+)
+{{ end }}
+
+{{ if eq .role "workstation" }}
+# Tools for Workstation (Heavy Dev)
+PACKAGES+=(
+    build-essential
+    g++
+    gcc
+    make
+)
+{{ end }}
+
+{{ if eq .role "server" }}
+# Tools for Server (Gateway/Headless) - Logic: Keep it absolute minimal
+PACKAGES+=(
+    nginx
+    net-tools
+    # No htop/ncdu by default unless requested, standard top/du is enough for 1GB RAM
+)
+{{ end }}
+
+echo "Installing packages: ${PACKAGES[*]}"
+
+if command_exists apt-get; then
+    sudo apt-get install -y "${PACKAGES[@]}"
+else
+    echo "Warning: apt-get not found. Skipping package installation via package manager."
+fi
+
+# Install Starship ONLY for non-server roles (Save RAM/Disk)
+if [[ "{{ .role }}" != "server" ]]; then
+    if ! command_exists starship; then
+        echo "Installing Starship..."
+        curl -sS https://starship.rs/install.sh | sh -s -- -y
+    fi
+fi
+
+# Install Bitwarden CLI if not present
+if ! command_exists bw; then
+    echo "Installing Bitwarden CLI..."
+    # Download the native binary
+    curl -L "https://vault.bitwarden.com/download/?app=cli&platform=linux" -o bw.zip
+    unzip -o bw.zip
+    chmod +x bw
+    mkdir -p "$HOME/.local/bin"
+    mv bw "$HOME/.local/bin/bw"
+    rm bw.zip
+fi
+
+echo "Linux Package Installation Complete!"
+{{- end -}}

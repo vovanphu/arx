@@ -1,0 +1,44 @@
+# Microsoft.PowerShell_profile.ps1 - Managed by Chezmoi
+
+# Unified Aliases (as functions to support arguments)
+{{ range $alias, $command := .commonAliases -}}
+function {{ $alias }} { {{ $command }} $args }
+{{ end -}}
+
+{{ range $alias, $command := .winAliases -}}
+function {{ $alias }} { {{ $command }} $args }
+{{ end -}}
+
+# Environment Variables
+$env:EDITOR = {{ .editor | quote }}
+$env:MACHINE_ROLE = {{ .role | quote }}
+
+# Welcome message
+{{- if eq .role "commander" }}
+Write-Host "Nuclear Football Active: Entering Commander Environment..." -ForegroundColor Cyan
+{{- else if eq .role "workstation" }}
+Write-Host "Entering Workstation Environment..." -ForegroundColor Green
+{{- else if eq .role "mobilelab" }}
+Write-Host "Entering Mobile Lab Environment..." -ForegroundColor Blue
+{{- else if eq .role "server" }}
+Write-Host "Entering Server Environment... [SAFE MODE]" -ForegroundColor Yellow
+{{- else }}
+Write-Host "Entering Dotfiles Environment (Role: {{ .role }})..." -ForegroundColor Gray
+{{- end }}
+
+# Bitwarden Helper: Auto-unlock if needed
+function bw-unlock {
+    if (Get-Command bw -ErrorAction SilentlyContinue) {
+        $status = bw status | ConvertFrom-Json
+        if ($status.status -eq "locked") {
+            Write-Host "Bitwarden is locked. Unlocking..." -ForegroundColor Yellow
+            $env:BW_SESSION = (bw unlock --raw)
+            Write-Host "Vault unlocked!" -ForegroundColor Green
+        }
+    }
+}
+
+# Starship Prompt (Must be last)
+if (Get-Command starship -ErrorAction SilentlyContinue) {
+    Invoke-Expression (&starship init powershell)
+}

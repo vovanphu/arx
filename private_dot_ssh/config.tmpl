@@ -1,0 +1,38 @@
+# .ssh/config - Managed by Chezmoi & Bitwarden
+# This file is generated. Do not edit manually.
+
+# Common Configuration
+Host *
+    AddKeysToAgent yes
+    Compression yes
+
+# GitHub (IdentityFile handled by Agent usually, but here for reference)
+Host github.com
+    User git
+    Hostname github.com
+
+# Role-Based Keys
+{{- if or (eq .role "commander") (eq .role "workstation") }}
+# Master Identity (Commander & Workstation)
+IdentityFile ~/.ssh/id_ed25519
+{{- end }}
+
+{{- if or (eq .role "mobilelab") (eq .role "server") }}
+# Deploy Identity (Mobile Lab & Server)
+IdentityFile ~/.ssh/id_ed25519_server
+{{- end }}
+
+# Server (Gateway) typically relies on Agent Forwarding or separate deploy keys
+# So no default IdentityFile enforced here unless specific needs arise.
+
+# Secure Hosts (Pulled from Bitwarden)
+{{- /* Use a safe approach: only try to fetch if we have a session or specific logic */ -}}
+{{- /* Optional: Enable this if you have 'ssh-config-common' in Bitwarden
+{{- if (env "BW_SESSION") -}}
+{{-   $sshConfig := (bitwarden "item" "ssh-config-common") -}}
+{{-   if $sshConfig -}}
+# Extracted from Bitwarden: ssh-config-common
+{{ $sshConfig.notes }}
+{{-   end -}}
+{{- end -}}
+*/ -}}

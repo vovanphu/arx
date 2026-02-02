@@ -1,0 +1,8 @@
+{{- if or (eq .role "mobilelab") (eq .role "server") -}}
+{{-   if (env "BW_SESSION") -}}
+{{-     $key := (bitwarden "item" "ssh-key-server-ed25519") -}}
+{{-     if $key -}}
+{{ $key.notes }}
+{{-     end -}}
+{{-   end -}}
+{{- end -}}

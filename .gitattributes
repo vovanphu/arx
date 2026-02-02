@@ -1,0 +1,14 @@
+# Enforce LF for all files to maintain consistency in Chezmoi
+* text=auto eol=lf
+
+# Explicitly handle script files
+*.sh text eol=lf
+*.ps1 text eol=crlf
+
+# Ensure templates are stored as LF
+*.tmpl text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.ico binary

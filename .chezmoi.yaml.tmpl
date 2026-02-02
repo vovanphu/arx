@@ -1,0 +1,55 @@
+{{- $email := promptStringOnce . "email" "Email address" "vovanphu1012@gmail.com" -}}
+{{- $name := promptStringOnce . "name" "User name" "vovanphu" -}}
+
+{{- /* OS and Environment Detection */ -}}
+{{- $is_wsl := false -}}
+{{- if (env "WSL_DISTRO_NAME") -}}
+{{-   $is_wsl = true -}}
+{{- end -}}
+
+{{- /* Machine Role Selection and Auto-detection */ -}}
+{{- $role := "server" -}}
+
+{{- /* Windows & WSL always default to interactive roles (High Specs/Usage) */ -}}
+{{- if or (eq .chezmoi.os "windows") $is_wsl -}}
+{{-   $role = "workstation" -}}
+{{- end -}}
+
+{{- if hasKey . "role" -}}
+{{-   $role = .role -}}
+{{- else -}}
+{{-   if or (eq .chezmoi.os "windows") $is_wsl -}}
+{{-     $role = promptStringOnce . "role" "Machine Role (commander, workstation)" $role -}}
+{{-   else -}}
+{{-     $role = promptStringOnce . "role" "Machine Role (commander, workstation, mobilelab, server)" $role -}}
+{{-   end -}}
+{{- end -}}
+{{- if eq .chezmoi.os "windows" -}}
+sourceDir: {{ .chezmoi.sourceDir | quote }}
+pager: ""
+{{- end }}
+
+bitwarden:
+    command: "bw"
+
+data:
+    email: {{ $email | quote }}
+    name: {{ $name | quote }}
+    osid: {{ .chezmoi.os | quote }}
+    is_wsl: {{ $is_wsl }}
+    role: {{ $role | quote }}
+    
+    # Aliases
+    commonAliases:
+        g: "git"
+        st: "git status"
+        chez: "chezmoi"
+    
+    # OS-Specific Overrides
+    winAliases:
+        l: "Get-ChildItem -Force"
+    
+    unixAliases:
+        l: "ls -lah"
+    
+    editor: "nvim"

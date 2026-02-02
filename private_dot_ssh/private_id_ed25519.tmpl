@@ -1,0 +1,8 @@
+{{- if or (eq .role "commander") (eq .role "workstation") -}}
+{{-   if (env "BW_SESSION") -}}
+{{-     $key := (bitwarden "item" "ssh-key-master-ed25519") -}}
+{{-     if $key -}}
+{{ $key.notes }}
+{{-     end -}}
+{{-   end -}}
+{{- end -}}
