@@ -1,0 +1,27 @@
+{{- if ne .chezmoi.os "windows" -}}
+#!/bin/bash
+
+# Trigger execution when these templates change:
+# {{ include "private_dot_ssh/private_id_ed25519_dotfiles_master.tmpl" | sha256sum }}
+# {{ include "private_dot_ssh/private_id_ed25519_dotfiles_server.tmpl" | sha256sum }}
+
+SSH_DIR="$HOME/.ssh"
+KEYS=("id_ed25519_dotfiles_master" "id_ed25519_dotfiles_server")
+
+if [ -d "$SSH_DIR" ]; then
+    for key in "${KEYS[@]}"; do
+        PRIVATE_KEY_PATH="$SSH_DIR/$key"
+        PUBLIC_KEY_PATH="$PRIVATE_KEY_PATH.pub"
+
+        if [ -f "$PRIVATE_KEY_PATH" ]; then
+            echo "Deriving public key for $key..."
+            if ssh-keygen -y -f "$PRIVATE_KEY_PATH" > "$PUBLIC_KEY_PATH"; then
+                chmod 644 "$PUBLIC_KEY_PATH"
+                echo "Generated: $PUBLIC_KEY_PATH"
+            else
+                echo "Failed to derive public key for $key"
+            fi
+        fi
+    done
+fi
+{{- end -}}
