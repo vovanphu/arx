@@ -59,15 +59,25 @@ if [ -d "$HOME/.local/bin" ] ; then
 fi
 
 # --- SSH Agent Auto-Load ---
-if [ -z "$SSH_AUTH_SOCK" ]; then
-    eval "$(ssh-agent -s)" > /dev/null
+# --- SSH Agent Auto-Load (Robost Socket Reuse) ---
+mkdir -p "$HOME/.ssh"
+export SSH_AUTH_SOCK="$HOME/.ssh/agent.sock"
+
+# Check if socket exists and is valid
+if [ ! -S "$SSH_AUTH_SOCK" ]; then
+    eval "$(ssh-agent -s -a "$SSH_AUTH_SOCK")" > /dev/null
 fi
 
-if [ -f "$HOME/.ssh/id_ed25519" ]; then
-   # Check if key is already added to avoid duplicates/noise
-   ssh-add -l &>/dev/null
+{{- $keyFile := "id_ed25519" -}}
+{{- if or (eq .role "server") (eq .role "mobilelab") -}}
+{{-   $keyFile = "id_ed25519_server" -}}
+{{- end -}}
+
+if [ -f "$HOME/.ssh/{{ $keyFile }}" ]; then
+   # Check if key is loaded
+   ssh-add -l > /dev/null 2>&1
    if [ $? -ne 0 ]; then
        # Add the key silently
-       ssh-add "$HOME/.ssh/id_ed25519" 2>/dev/null
+       ssh-add "$HOME/.ssh/{{ $keyFile }}" > /dev/null 2>&1
    fi
 fi
