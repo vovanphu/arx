@@ -43,8 +43,8 @@
 {{-     $hostname_selection = promptString "Enter Custom Hostname" -}}
 {{-   end -}}
 {{- end -}}
-{{- if eq .chezmoi.os "windows" -}}
 sourceDir: {{ .chezmoi.sourceDir | quote }}
+{{- if eq .chezmoi.os "windows" }}
 pager: ""
 {{- end }}
 
