@@ -61,7 +61,6 @@ else
     echo "Warning: apt-get not found. Skipping package installation via package manager."
 fi
 
-# Install Starship ONLY for non-server roles (Save RAM/Disk)
 # Install Starship ONLY for Interactive roles (Save RAM/Disk)
 if [[ "{{ .role }}" == "centaur" || "{{ .role }}" == "chimera" || "{{ .role }}" == "griffin" ]]; then
     if ! command_exists starship; then
@@ -82,7 +81,6 @@ if ! command_exists bw; then
     rm bw.zip
 fi
 
-# Install FiraCode Nerd Font for non-server roles
 # Install FiraCode Nerd Font for Interactive roles
 if [[ "{{ .role }}" == "centaur" || "{{ .role }}" == "chimera" || "{{ .role }}" == "griffin" ]]; then
     FONT_DIR="$HOME/.local/share/fonts"
