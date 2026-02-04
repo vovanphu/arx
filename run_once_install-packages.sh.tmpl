@@ -1,5 +1,5 @@
-{{- if eq .chezmoi.os "linux" -}}
 #!/bin/bash
+{{- if eq .chezmoi.os "linux" -}}
 
 # run_once_install-packages.sh.tmpl
 # This script runs only when the hash of this file changes.
@@ -28,39 +28,35 @@ fi
 {{- $pkgData := include "packages.yaml" | fromYaml -}}
 {{- $linuxData := $pkgData.linux -}}
 
-# Define minimal base packages (Must be lightweight)
-PACKAGES=(
+# Define minimal base packages (String list for POSIX compatibility)
+PACKAGES=""
 {{- range $linuxData.common -}}
-    "{{ . }}"
+    PACKAGES="$PACKAGES {{ . }}"
 {{- end -}}
-)
 
 # Core Tools (Excluded from headless 'server' roles to save resources)
 # Only install 'extras' (Neovim, Ripgrep, Starship) on Interactive roles:
 if [[ "{{ .role }}" == "centaur" || "{{ .role }}" == "chimera" || "{{ .role }}" == "griffin" ]]; then
-    PACKAGES+=(
 {{- range $linuxData.extras -}}
-        "{{ . }}"
+    PACKAGES="$PACKAGES {{ . }}"
 {{- end -}}
-    )
 fi
 
 # Role-specific packages
 {{- if hasKey $linuxData.roles .role -}}
     {{- $rolePkgs := index $linuxData.roles .role -}}
     {{- if $rolePkgs }}
-PACKAGES+=(
     {{- range $rolePkgs -}}
-        "{{ . }}"
+        PACKAGES="$PACKAGES {{ . }}"
     {{- end -}}
-)
     {{- end -}}
 {{- end -}}
 
-echo "Installing packages: ${PACKAGES[*]}"
+echo "Installing packages: $PACKAGES"
 
 if command_exists apt-get; then
-    sudo apt-get install -y "${PACKAGES[@]}"
+    # Warning: unquoted variable to allow splitting
+    sudo apt-get install -y $PACKAGES
 else
     echo "Warning: apt-get not found. Skipping package installation via package manager."
 fi
