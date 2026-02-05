@@ -1,3 +1,4 @@
+```
 {{- if eq .chezmoi.os "linux" -}}
 #!/bin/bash
 
@@ -38,13 +39,11 @@ PACKAGES=""
 
 # Core Tools (Excluded from headless 'server' roles to save resources)
 # Only install 'extras' (Neovim, Ripgrep, Starship) on Interactive roles:
-case "{{ .role }}" in
-    centaur|chimera|griffin)
-        {{- range $linuxData.extras -}}
-        PACKAGES="$PACKAGES {{ . }}"
-        {{- end -}}
-        ;;
-esac
+if [ "{{ .role }}" = "centaur" ] || [ "{{ .role }}" = "chimera" ] || [ "{{ .role }}" = "griffin" ]; then
+    {{- range $linuxData.extras -}}
+    PACKAGES="$PACKAGES {{ . }}"
+    {{- end -}}
+fi
 
 # Role-specific packages
 {{- if hasKey $linuxData.roles .role -}}
