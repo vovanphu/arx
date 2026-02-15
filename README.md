@@ -34,7 +34,7 @@ Handles dependency checks, Bitwarden authentication, and SSH agent reuse.
     ```
 *   **Option B: Automated** (Zero-touch, will auto-delete `.env`):
     ```bash
-    echo "BW_EMAIL=user@mail.com" > .env; echo "BW_PASSWORD=pass" >> .env; echo "ROLE=centaur" >> .env; echo "USER_NAME='Vovan Phu'" >> .env; bash -c "$(curl -fsSL https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.sh)"
+    echo "BW_EMAIL=user@mail.com" > .env; echo "BW_PASSWORD=pass" >> .env; echo "ROLE=centaur" >> .env; echo "USER_NAME='vovanphu'" >> .env; bash -c "$(curl -fsSL https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.sh)"
     ```
 
 ---
