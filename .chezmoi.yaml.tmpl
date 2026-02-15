@@ -7,41 +7,19 @@
 {{-   $is_wsl = true -}}
 {{- end -}}
 
-{{- /* Machine Role Selection and Auto-detection */ -}}
-{{- $role := "cyclops" -}}
-
-{{- /* Windows & WSL always default to interactive roles (High Specs/Usage) */ -}}
-{{- if or (eq .chezmoi.os "windows") $is_wsl -}}
-{{-   $role = "chimera" -}}
+{{- /* Machine Role Selection */ -}}
+{{- $role_default := "chimera" -}}
+{{- if not (or (eq .chezmoi.os "windows") $is_wsl) -}}
+{{-   $role_default = "cyclops" -}}
 {{- end -}}
+{{- $role := promptStringOnce . "role" "Machine Role" $role_default -}}
 
-{{- if hasKey . "role" -}}
-{{-   $role = .role -}}
-{{- else -}}
-{{-   if or (eq .chezmoi.os "windows") $is_wsl -}}
-{{-     $role = promptStringOnce . "role" "Machine Role (centaur, chimera)" $role -}}
-{{-   else -}}
-{{-     $role = promptStringOnce . "role" "Machine Role (centaur, chimera, hydra, griffin, cyclops, kraken, cerberus, golem, minion, siren)" $role -}}
-{{-   end -}}
-{{- end -}}
+{{- /* Hostname Selection */ -}}
+{{- $hostname_selection := promptStringOnce . "hostname" "Enter Hostname" "custom" -}}
 
-{{- /* Hostname Selection based on Role Pool */ -}}
-{{- $hostname_selection := "custom" -}}
-
-{{- if hasKey . "hostname" -}}
-{{-   $hostname_selection = .hostname -}}
-{{- else -}}
-{{-   $packages := include "packages.yaml" | fromYaml -}}
-{{-   if hasKey $packages.name_pools $role -}}
-{{-     $pool := index $packages.name_pools $role -}}
-{{-     $choices := append $pool "custom" -}}
-{{-     $msg := list "Choose a Hostname for" $role ": (" ($choices | join ", ") ")" | join "" -}}
-{{-     $hostname_selection = promptString $msg "custom" -}}
-{{-   end -}}
-
-{{-   if eq $hostname_selection "custom" -}}
-{{-     $hostname_selection = promptString "Enter Custom Hostname" -}}
-{{-   end -}}
+{{- /* If custom, ask for custom hostname (fallback for interactive use) */ -}}
+{{- if eq $hostname_selection "custom" -}}
+{{-   $hostname_selection = promptString "Enter Custom Hostname" -}}
 {{- end -}}
 sourceDir: {{ .chezmoi.sourceDir | quote }}
 {{- if eq .chezmoi.os "windows" }}

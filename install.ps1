@@ -39,8 +39,7 @@ if (-not $PSScriptRoot) {
         git clone https://github.com/vovanphu/dotfiles.git $DEST_DIR
     } else {
         Write-Host "Repository exists. Updating..." -ForegroundColor Gray
-        Set-Location $DEST_DIR
-        git pull
+        Set-Location $DEST_DIR; git pull
     }
     
     Write-Host "Handing over to local install script..." -ForegroundColor Green
@@ -103,7 +102,7 @@ try {
         }
 
         if ($password) {
-            Write-Host "BW_PASSWORD detected. Attempting automated unlock..." -ForegroundColor Yellow
+            Write-Host "BW_PASSWORD detected. Attempting automated Bitwarden unlock..." -ForegroundColor Yellow
             $statusObj = bw status | ConvertFrom-Json
             if ($statusObj.status -eq "unauthenticated") {
                 Write-Host "Logging in via email and passwordenv..." -ForegroundColor Gray
@@ -131,6 +130,7 @@ try {
         if ($response -eq 'y') {
             $statusObj = bw status | ConvertFrom-Json
             if ($statusObj.status -eq "unauthenticated") { bw login }
+            Write-Host ">>> STEP 2: Decrypt Vault (Unlock)" -ForegroundColor Cyan
             $output = (bw unlock --raw | Out-String).Trim() -split "`n" | Select-Object -Last 1
             if ($output -match '^[A-Za-z0-9+/=]{20,}$') {
                 $env:BW_SESSION = $output.Trim()
@@ -140,22 +140,23 @@ try {
         }
     }
 
-    # --- Chezmoi Initialization (Final Fix) ---
+    # --- Chezmoi Initialization (The "No-Talk" Version) ---
     Write-Host "`n--- Chezmoi Initialization ---" -ForegroundColor Cyan
     
-    # Use --promptString=key=value to satisfy template variables during init
+    # Use split-argument splatting (safest for PowerShell 5.1)
     $chezmoiArgs = @("init", "--force", "--source=$PSScriptRoot")
-    if ($role) { $chezmoiArgs += "--promptString=role=$role" }
-    if ($hostname) { $chezmoiArgs += "--promptString=hostname=$hostname" }
-    if ($userName) { $chezmoiArgs += "--promptString=name=$userName" }
-    if ($emailAddress) { $chezmoiArgs += "--promptString=email=$emailAddress" }
+    
+    # Match keys exactly with promptStringOnce in template
+    if ($emailAddress) { $chezmoiArgs += "--promptString"; $chezmoiArgs += "email=$emailAddress" }
+    if ($userName)     { $chezmoiArgs += "--promptString"; $chezmoiArgs += "name=$userName" }
+    if ($role)         { $chezmoiArgs += "--promptString"; $chezmoiArgs += "role=$role" }
+    if ($hostname)     { $chezmoiArgs += "--promptString"; $chezmoiArgs += "hostname=$hostname" }
 
     Write-Host "Executing: chezmoi $($chezmoiArgs -join ' ')" -ForegroundColor Gray
-    & $CHEZMOI_BIN @chezmoiArgs
-    if ($LASTEXITCODE -ne 0) { throw "Chezmoi init failed. Try manual: chezmoi init --source=$PSScriptRoot" }
 
-    Write-Host "Verifying source path..." -ForegroundColor Gray
-    & $CHEZMOI_BIN --source="$PSScriptRoot" source-path
+    # Chiêu "Gậy ông đập lưng ông": Pipe thêm phím Enter (\n) để "bypass" nếu có prompt rác
+    "`n`n`n`n" | & $CHEZMOI_BIN @chezmoiArgs
+    if ($LASTEXITCODE -ne 0) { throw "Chezmoi init failed. Try manual: chezmoi init --source=$PSScriptRoot" }
 
     Write-Host "Applying dotfiles..." -ForegroundColor Green
     & $CHEZMOI_BIN apply --source="$PSScriptRoot" --force
@@ -164,7 +165,7 @@ try {
     # --- Post-Install Tasks ---
     # Migration/Backup
     if (Test-Path "$HOME/.ssh/id_ed25519") {
-        Write-Host "Backing up legacy keys..." -ForegroundColor Yellow
+        Write-Host "Backing up legacy default keys..." -ForegroundColor Yellow
         Rename-Item "$HOME/.ssh/id_ed25519" "id_ed25519.bak" -Force -ErrorAction SilentlyContinue
         Rename-Item "$HOME/.ssh/id_ed25519.pub" "id_ed25519.pub.bak" -Force -ErrorAction SilentlyContinue
     }

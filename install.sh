@@ -136,18 +136,21 @@ fi
 
 # --- Chezmoi Initialization (Final Fix) ---
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-echo ""
 echo "--- Chezmoi Initialization ---"
 echo "Initializing Chezmoi with source: $SCRIPT_DIR"
 
-# Prepare init arguments - use --promptString to satisfy template prompts
-INIT_ARGS=("init" "--force" "--source=$SCRIPT_DIR")
-[ -n "$ROLE_VAR" ] && INIT_ARGS+=("--promptString=role=$ROLE_VAR")
-[ -n "$HOSTNAME_VAR" ] && INIT_ARGS+=("--promptString=hostname=$HOSTNAME_VAR")
-[ -n "$USER_NAME_VAR" ] && INIT_ARGS+=("--promptString=name=$USER_NAME_VAR")
-[ -n "$EMAIL_ADDRESS_VAR" ] && INIT_ARGS+=("--promptString=email=$EMAIL_ADDRESS_VAR")
+# Ensure .env is deleted on exit (secure cleanup)
+trap 'rm -f .env' EXIT
 
-"$CHEZMOI_BIN" "${INIT_ARGS[@]}"
+# Prepare init arguments - use --promptString to satisfy stable keys in template
+INIT_ARGS=("init" "--force" "--source=$SCRIPT_DIR")
+[ -n "$EMAIL_ADDRESS_VAR" ] && INIT_ARGS+=("--promptString=email=$EMAIL_ADDRESS_VAR")
+[ -n "$USER_NAME_VAR" ]     && INIT_ARGS+=("--promptString=name=$USER_NAME_VAR")
+[ -n "$ROLE_VAR" ]          && INIT_ARGS+=("--promptString=role=$ROLE_VAR")
+[ -n "$HOSTNAME_VAR" ]      && INIT_ARGS+=("--promptString=hostname=$HOSTNAME_VAR")
+
+# Chiêu "Gậy ông đập lưng ông": Pipe thêm phím Enter (\n) để "bypass" nếu có prompt rác
+printf "\n\n\n\n" | "$CHEZMOI_BIN" "${INIT_ARGS[@]}"
 if [ $? -ne 0 ]; then echo "Error: Chezmoi init failed."; exit 1; fi
 
 echo "Applying dotfiles..."
