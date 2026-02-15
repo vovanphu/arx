@@ -59,20 +59,31 @@ if (-not $CHEZMOI_BIN) {
 # Install chezmoi if not found
 if (-not $CHEZMOI_BIN) {
     Write-Host "Installing chezmoi via Winget..." -ForegroundColor Cyan
-    winget install chezmoi --accept-source-agreements --accept-package-agreements
+    winget install --id twpayne.chezmoi -e --source winget --accept-source-agreements --accept-package-agreements
     
-    Write-Host "Refreshing Environment Variables..." -ForegroundColor Gray
+    # Force refresh environment immediately
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
     
     # Refresh PATH reference
     $CHEZMOI_BIN = Get-Command chezmoi -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
-    if (-not $CHEZMOI_BIN) { $CHEZMOI_BIN = "chezmoi" } 
+    if (-not $CHEZMOI_BIN) {
+        Write-Error "chezmoi was installed but could not be found in PATH. Please try restarting your terminal or manually installing chezmoi."
+        exit 1
+    }
 }
 
 # Pre-install Bitwarden CLI (Required for secret rendering during init)
 if (-not (Get-Command bw -ErrorAction SilentlyContinue)) {
     Write-Host "Installing Bitwarden CLI (Required for Secrets)..." -ForegroundColor Cyan
-    winget install Bitwarden.CLI --accept-source-agreements --accept-package-agreements
+    winget install --id Bitwarden.CLI -e --source winget --accept-source-agreements --accept-package-agreements
+    
+    # Force refresh environment immediately
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
+    if (-not (Get-Command bw -ErrorAction SilentlyContinue)) {
+        Write-Error "Bitwarden CLI was installed but could not be found in PATH. Please try restarting your terminal or manually installing Bitwarden CLI."
+        exit 1
+    }
 }
 
 # Smart Unlock: Help user provision secrets automatically or interactively
