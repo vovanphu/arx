@@ -20,9 +20,9 @@ The script automatically installs `chezmoi`, `bitwarden-cli`, `git`, `tailscale`
     ```powershell
     irm https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.ps1 | iex
     ```
-*   **Option B: Automated** (Zero-touch):
+*   **Option B: Automated** (Zero-touch, will auto-delete `.env`):
     ```powershell
-    @("BW_EMAIL=your@email.com", "BW_PASSWORD=your_pass") | Set-Content .env; irm https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.ps1 | iex
+    @("BW_EMAIL=user@mail.com", "BW_PASSWORD=pass", "ROLE=centaur", "HOSTNAME=chiron") | Set-Content .env; irm https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.ps1 | iex
     ```
 
 #### 🐧 Linux / WSL
@@ -32,9 +32,9 @@ Handles dependency checks, Bitwarden authentication, and SSH agent reuse.
     ```bash
     bash -c "$(curl -fsSL https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.sh)"
     ```
-*   **Option B: Automated**:
+*   **Option B: Automated** (Zero-touch, will auto-delete `.env`):
     ```bash
-    echo "BW_EMAIL=your@email.com" > .env; echo "BW_PASSWORD=your_pass" >> .env; bash -c "$(curl -fsSL https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.sh)"
+    echo "BW_EMAIL=user@mail.com" > .env; echo "BW_PASSWORD=pass" >> .env; echo "ROLE=centaur" >> .env; bash -c "$(curl -fsSL https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.sh)"
     ```
 
 ---
