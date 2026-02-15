@@ -91,12 +91,17 @@ if [ -z "${BW_SESSION:-}" ]; then
 
     if [ -f ".env" ]; then
         echo "Found .env file. Parsing for automation variables..."
-        [z "$PASSWORD" ] && PASSWORD=$(grep "^BW_PASSWORD=" .env | head -n1 | cut -d'=' -f2- | sed -e "s/^['\"]//; s/['\"]$//")
-        [ -z "$EMAIL" ] && EMAIL=$(grep "^BW_EMAIL=" .env | head -n1 | cut -d'=' -f2- | sed -e "s/^['\"]//; s/['\"]$//")
-        [ -z "$ROLE_VAR" ] && ROLE_VAR=$(grep "^ROLE=" .env | head -n1 | cut -d'=' -f2- | sed -e "s/^['\"]//; s/['\"]$//")
-        [ -z "$HOSTNAME_VAR" ] && HOSTNAME_VAR=$(grep "^HOSTNAME=" .env | head -n1 | cut -d'=' -f2- | sed -e "s/^['\"]//; s/['\"]$//")
-        [ -z "$USER_NAME_VAR" ] && USER_NAME_VAR=$(grep "^USER_NAME=" .env | head -n1 | cut -d'=' -f2- | sed -e "s/^['\"]//; s/['\"]$//")
-        [ -z "$EMAIL_ADDRESS_VAR" ] && EMAIL_ADDRESS_VAR=$(grep "^EMAIL_ADDRESS=" .env | head -n1 | cut -d'=' -f2- | sed -e "s/^['\"]//; s/['\"]$//")
+        # Robust parsing: Skip comments, handle quotes, trim whitespace
+        parse_var() {
+            grep "^$1=" .env | head -n1 | cut -d'=' -f2- | sed -e "s/#.*$//" -e "s/^[[:space:]]*//" -e "s/[[:space:]]*$//" -e "s/^['\"]//" -e "s/['\"]$//"
+        }
+        
+        [ -z "$PASSWORD" ] && PASSWORD=$(parse_var "BW_PASSWORD")
+        [ -z "$EMAIL" ] && EMAIL=$(parse_var "BW_EMAIL")
+        [ -z "$ROLE_VAR" ] && ROLE_VAR=$(parse_var "ROLE")
+        [ -z "$HOSTNAME_VAR" ] && HOSTNAME_VAR=$(parse_var "HOSTNAME")
+        [ -z "$USER_NAME_VAR" ] && USER_NAME_VAR=$(parse_var "USER_NAME")
+        [ -z "$EMAIL_ADDRESS_VAR" ] && EMAIL_ADDRESS_VAR=$(parse_var "EMAIL_ADDRESS")
     fi
 
     SHOULD_PROMPT=true

@@ -12,15 +12,20 @@ if (-not $PSScriptRoot) {
 
     # 0. Load .env from current directory if present (to pass secrets to local script)
     if (Test-Path ".env") {
-        Write-Host "Found .env in current directory. Loading credentials..." -ForegroundColor Gray
+        Write-Host "Found .env in current directory. Loading automation variables..." -ForegroundColor Gray
         $envContent = Get-Content ".env"
         foreach ($line in $envContent) {
-            if ($line -match "^BW_PASSWORD=(.*)$") { $env:BW_PASSWORD = $matches[1].Trim(" `"'") }
-            if ($line -match "^BW_EMAIL=(.*)$") { $env:BW_EMAIL = $matches[1].Trim(" `"'") }
-            if ($line -match "^ROLE=(.*)$") { $env:ROLE = $matches[1].Trim(" `"'") }
-            if ($line -match "^HOSTNAME=(.*)$") { $env:HOSTNAME = $matches[1].Trim(" `"'") }
-            if ($line -match "^USER_NAME=(.*)$") { $env:USER_NAME = $matches[1].Trim(" `"'") }
-            if ($line -match "^EMAIL_ADDRESS=(.*)$") { $env:EMAIL_ADDRESS = $matches[1].Trim(" `"'") }
+            # Robust parsing: Skip comments, trim both sides, then trim quotes from value
+            if ($line -match '^([^#=]+)=(.*)$') {
+                $key = $matches[1].Trim()
+                $val = $matches[2].Split('#')[0].Trim().Trim(" `"'")
+                if ($key -eq "BW_PASSWORD") { $env:BW_PASSWORD = $val }
+                if ($key -eq "BW_EMAIL")    { $env:BW_EMAIL = $val }
+                if ($key -eq "ROLE")        { $env:ROLE = $val }
+                if ($key -eq "HOSTNAME")    { $env:HOSTNAME = $val }
+                if ($key -eq "USER_NAME")   { $env:USER_NAME = $val }
+                if ($key -eq "EMAIL_ADDRESS") { $env:EMAIL_ADDRESS = $val }
+            }
         }
     }
     # 1. Install Git if missing
@@ -112,13 +117,21 @@ if (-not $env:BW_SESSION) {
         Write-Host "Found .env file. Parsing for automation variables..." -ForegroundColor Gray
         $envContent = Get-Content $envFile
         foreach ($line in $envContent) {
-            if ($line -match "^BW_PASSWORD=(.*)$") { $password = $matches[1].Trim(" `"'") }
-            if ($line -match "^BW_EMAIL=(.*)$") { $email = $matches[1].Trim(" `"'") }
-            if ($line -match "^ROLE=(.*)$") { $role = $matches[1].Trim(" `"'") }
-            if ($line -match "^HOSTNAME=(.*)$") { $hostname = $matches[1].Trim(" `"'") }
-            if ($line -match "^USER_NAME=(.*)$") { $userName = $matches[1].Trim(" `"'") }
-            if ($line -match "^EMAIL_ADDRESS=(.*)$") { $emailAddress = $matches[1].Trim(" `"'") }
+            if ($line -match '^([^#=]+)=(.*)$') {
+                $key = $matches[1].Trim()
+                $val = $matches[2].Split('#')[0].Trim().Trim(" `"'")
+                if ($key -eq "BW_PASSWORD") { $password = $val }
+                if ($key -eq "BW_EMAIL")    { $email = $val }
+                if ($key -eq "ROLE")        { $role = $val }
+                if ($key -eq "HOSTNAME")    { $hostname = $val }
+                if ($key -eq "USER_NAME")   { $userName = $val }
+                if ($key -eq "EMAIL_ADDRESS") { $emailAddress = $val }
+            }
         }
+    }
+
+    if ($role -or $hostname -or $userName) {
+        Write-Host "Automation Detected: ROLE=$role, HOSTNAME=$hostname, USER=$userName" -ForegroundColor Cyan
     }
 
     $shouldPrompt = $true
@@ -186,14 +199,14 @@ if (-not $env:BW_SESSION) {
 Write-Host "`n--- Chezmoi Initialization ---" -ForegroundColor Cyan
 Write-Host "Initializing Chezmoi with source: $PSScriptRoot" -ForegroundColor Cyan
 
-# Prepare init arguments - Subcommand MUST be in the array for robust splatting
-$initArgs = @("init", "--source", "$PSScriptRoot", "--force")
-if ($role) { $initArgs += @("--data", "role=$role") }
-if ($hostname) { $initArgs += @("--data", "hostname=$hostname") }
-if ($userName) { $initArgs += @("--data", "name=$userName") }
-if ($emailAddress) { $initArgs += @("--data", "email=$emailAddress") }
+# Prepare init arguments using separate splattable arrays for optional data
+# This is the MOST ROBUST way to handle optional flags in external calls for PS 5.1
+$roleData = if ($role) { @("--data", "role=$role") } else { @() }
+$hostData = if ($hostname) { @("--data", "hostname=$hostname") } else { @() }
+$userData = if ($userName) { @("--data", "name=$userName") } else { @() }
+$mailData = if ($emailAddress) { @("--data", "email=$emailAddress") } else { @() }
 
-& $CHEZMOI_BIN @initArgs
+& $CHEZMOI_BIN init --source "$PSScriptRoot" --force @roleData @hostData @userData @mailData
 
 Write-Host "Verifying source path..." -ForegroundColor Gray
 & $CHEZMOI_BIN source-path
