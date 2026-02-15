@@ -177,12 +177,12 @@ echo "Initializing and Applying Chezmoi with source: $SCRIPT_DIR"
 # Ensure .env is deleted on exit (secure cleanup)
 trap 'rm -f .env' EXIT
 
-# Prepare init arguments - use --promptString instead of --data for template variables
+# Prepare init arguments - use --define instead of --promptString for template variables
 INIT_ARGS=("init" "--apply" "--source=$SCRIPT_DIR" "--force")
-[ -n "$ROLE_VAR" ] && INIT_ARGS+=("--promptString=role=$ROLE_VAR")
-[ -n "$HOSTNAME_VAR" ] && INIT_ARGS+=("--promptString=hostname=$HOSTNAME_VAR")
-[ -n "$USER_NAME_VAR" ] && INIT_ARGS+=("--promptString=name=$USER_NAME_VAR")
-[ -n "$EMAIL_ADDRESS_VAR" ] && INIT_ARGS+=("--promptString=email=$EMAIL_ADDRESS_VAR")
+[ -n "$ROLE_VAR" ] && INIT_ARGS+=("--define=role=$ROLE_VAR")
+[ -n "$HOSTNAME_VAR" ] && INIT_ARGS+=("--define=hostname=$HOSTNAME_VAR")
+[ -n "$USER_NAME_VAR" ] && INIT_ARGS+=("--define=name=$USER_NAME_VAR")
+[ -n "$EMAIL_ADDRESS_VAR" ] && INIT_ARGS+=("--define=email=$EMAIL_ADDRESS_VAR")
 
 "$CHEZMOI_BIN" "${INIT_ARGS[@]}"
 

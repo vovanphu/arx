@@ -203,12 +203,12 @@ if (-not $env:BW_SESSION) {
 # --- Chezmoi Initialization (Final Fix) ---
 Write-Host "`n--- Chezmoi Initialization ---" -ForegroundColor Cyan
 
-# Use --promptString instead of --data for template variables during init
+# Use --define instead of --promptString to satisfy both hasKey and promptStringOnce guards
 $chezmoiArgs = @("init", "--force", "--source=$PSScriptRoot")
-if ($role) { $chezmoiArgs += "--promptString=role=$role" }
-if ($hostname) { $chezmoiArgs += "--promptString=hostname=$hostname" }
-if ($userName) { $chezmoiArgs += "--promptString=name=$userName" }
-if ($emailAddress) { $chezmoiArgs += "--promptString=email=$emailAddress" }
+if ($role) { $chezmoiArgs += "--define=role=$role" }
+if ($hostname) { $chezmoiArgs += "--define=hostname=$hostname" }
+if ($userName) { $chezmoiArgs += "--define=name=$userName" }
+if ($emailAddress) { $chezmoiArgs += "--define=email=$emailAddress" }
 
 Write-Host "Executing: chezmoi $($chezmoiArgs -join ' ')" -ForegroundColor Gray
 
