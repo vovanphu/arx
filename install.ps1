@@ -149,11 +149,13 @@ try {
     $env:USER_NAME = $userName
     $env:EMAIL_ADDRESS = $emailAddress
 
-    # In ra để debug (Chắc chắn các biến quan trọng đã được nạp)
-    Write-Host "Baking environment variables into template context:" -ForegroundColor Gray
-    Write-Host "  > EMAIL: $env:EMAIL_ADDRESS"
-    Write-Host "  > ROLE : $env:ROLE"
-    Write-Host "  > HOST : $env:HOSTNAME"
+    # In ra để debug nếu có biến (Chủ yếu cho chế độ Automation)
+    if ($env:EMAIL_ADDRESS -or $env:ROLE -or $env:HOSTNAME) {
+        Write-Host "Baking environment variables into template context:" -ForegroundColor Gray
+        if ($env:EMAIL_ADDRESS) { Write-Host "  > EMAIL: $env:EMAIL_ADDRESS" }
+        if ($env:ROLE)          { Write-Host "  > ROLE : $env:ROLE" }
+        if ($env:HOSTNAME)      { Write-Host "  > HOST : $env:HOSTNAME" }
+    }
 
     Write-Host "`nInitializing chezmoi..." -ForegroundColor Gray
     # Không cần pipe Enter nữa vì template giờ đã có guard if/else cứng

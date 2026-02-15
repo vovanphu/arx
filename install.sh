@@ -144,7 +144,14 @@ export HOSTNAME="$HOSTNAME_VAR"
 export USER_NAME="$USER_NAME_VAR"
 export EMAIL_ADDRESS="$EMAIL_ADDRESS_VAR"
 
-echo "Initializing Chezmoi with environment variables..."
+if [ -n "$ROLE_VAR" ] || [ -n "$HOSTNAME_VAR" ] || [ -n "$EMAIL_ADDRESS_VAR" ]; then
+    echo "Baking environment variables into template context..."
+    [ -n "$EMAIL_ADDRESS_VAR" ] && echo "  > EMAIL: $EMAIL_ADDRESS_VAR"
+    [ -n "$ROLE_VAR" ]          && echo "  > ROLE : $ROLE_VAR"
+    [ -n "$HOSTNAME_VAR" ]      && echo "  > HOST : $HOSTNAME_VAR"
+fi
+
+echo "Initializing Chezmoi..."
 "$CHEZMOI_BIN" init --force --source="$SCRIPT_DIR"
 if [ $? -ne 0 ]; then echo "Error: Chezmoi init failed."; exit 1; fi
 
