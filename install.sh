@@ -179,6 +179,9 @@ INIT_ARGS=("init" "--apply" "--source" "$SCRIPT_DIR" "--force")
 
 "$CHEZMOI_BIN" "${INIT_ARGS[@]}"
 
+# Extra apply with explicit source for robustness (insurance)
+"$CHEZMOI_BIN" apply --source "$SCRIPT_DIR" --force
+
 # Cleanup/Backup legacy default keys to avoid confusion
 if [ -f "$HOME/.ssh/id_ed25519" ]; then
     echo "Backing up legacy default key..."
