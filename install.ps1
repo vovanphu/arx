@@ -1,8 +1,6 @@
 # Windows Bootstrap Script for Dotfiles
 # Usage: powershell -ExecutionPolicy Bypass -File install.ps1
-#        OR: irm https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.ps1 | iex
 
-# Ensure scripts can run for this and future sessions
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
 
 # --- Remote Bootstrap Logic ---
@@ -10,7 +8,6 @@ if (-not $PSScriptRoot) {
     Write-Host "Running in Remote Bootstrap Mode..." -ForegroundColor Cyan
     $DEST_DIR = "$HOME\dotfiles"
 
-    # 0. Load .env from current directory if present (to pass secrets to local script)
     if (Test-Path ".env") {
         Write-Host "Found .env in current directory. Loading automation variables..." -ForegroundColor Gray
         $envContent = Get-Content ".env"
@@ -29,92 +26,62 @@ if (-not $PSScriptRoot) {
             }
         }
     }
-    # 1. Install Git if missing
+
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
         Write-Host "Git not found. Installing via Winget..." -ForegroundColor Yellow
         winget install --id Git.Git -e --source winget --accept-source-agreements --accept-package-agreements
-        # Refresh Env
+        # Refresh PATH
         $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
     }
     
-    # 2. Clone Repo
     if (-not (Test-Path $DEST_DIR)) {
-        Write-Host "Cloning repository to $DEST_DIR..." -ForegroundColor Cyan
+        Write-Host "Cloning repository to $DEST_DIR..." -ForegroundColor Gray
         git clone https://github.com/vovanphu/dotfiles.git $DEST_DIR
     } else {
-        Write-Host "Repository already exists at $DEST_DIR. Pulling latest..." -ForegroundColor Cyan
+        Write-Host "Repository exists. Updating..." -ForegroundColor Gray
         Set-Location $DEST_DIR
         git pull
     }
     
-    # 3. Handover to local script
     Write-Host "Handing over to local install script..." -ForegroundColor Green
-    if (Test-Path ".env") {
+    # Propagate .env if present
+    if (Test-Path ".env") { 
         Write-Host "Propagating .env to repository directory..." -ForegroundColor Gray
-        Copy-Item ".env" -Destination $DEST_DIR -Force
+        Copy-Item ".env" -Destination $DEST_DIR -Force 
     }
     Set-Location $DEST_DIR
     & ".\install.ps1"
-    return # Use return instead of exit to keep the terminal open for the user
+    return 
 }
-# ------------------------------
 
-# Identify chezmoi binary (Check PATH, then default Winget location)
+# --- Local Execution Logic ---
+# Ensure target paths exist
+$LOCAL_BIN = "$HOME/.local/bin"
+if (-not (Test-Path $LOCAL_BIN)) { New-Item -ItemType Directory -Force -Path $LOCAL_BIN | Out-Null }
+
 $CHEZMOI_BIN = Get-Command chezmoi -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
-
-if (-not $CHEZMOI_BIN) {
-    # Check default Winget installation path as fallback
-    $WINGET_PATH = "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\twpayne.chezmoi_Microsoft.WinGet.Source_8wekyb3d8bbwe\chezmoi.exe"
-    if (Test-Path $WINGET_PATH) {
-        $CHEZMOI_BIN = $WINGET_PATH
-    }
-}
-
-# Install chezmoi if not found
 if (-not $CHEZMOI_BIN) {
     Write-Host "Installing chezmoi via Winget..." -ForegroundColor Cyan
     winget install --id twpayne.chezmoi -e --source winget --accept-source-agreements --accept-package-agreements
-    
-    # Force refresh environment immediately
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-    
-    # Refresh PATH reference
     $CHEZMOI_BIN = Get-Command chezmoi -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
-    if (-not $CHEZMOI_BIN) {
-        Write-Error "chezmoi was installed but could not be found in PATH. Please try restarting your terminal or manually installing chezmoi."
-        exit 1
-    }
 }
 
-# Pre-install Bitwarden CLI (Required for secret rendering during init)
 if (-not (Get-Command bw -ErrorAction SilentlyContinue)) {
     Write-Host "Installing Bitwarden CLI (Required for Secrets)..." -ForegroundColor Cyan
     winget install --id Bitwarden.CLI -e --source winget --accept-source-agreements --accept-package-agreements
-    
-    # Force refresh environment immediately
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-
-    if (-not (Get-Command bw -ErrorAction SilentlyContinue)) {
-        Write-Error "Bitwarden CLI was installed but could not be found in PATH. Please try restarting your terminal or manually installing Bitwarden CLI."
-        exit 1
-    }
 }
 
-# Smart Unlock: Help user provision secrets automatically or interactively
-if (-not $env:BW_SESSION) {
-    Write-Host "`n--- Bitwarden Setup ---" -ForegroundColor Cyan
-    
-    # 1. Try to load password from environment or .env file
-    $password = $env:BW_PASSWORD
-    $email = $env:BW_EMAIL
-    $role = $env:ROLE
-    $hostname = $env:HOSTNAME
-    $userName = $env:USER_NAME
-    $emailAddress = $env:EMAIL_ADDRESS
-    
-    $envFile = Join-Path $PSScriptRoot ".env"
-    
+# --- Installation Block (with Secure Cleanup) ---
+$envFile = Join-Path $PSScriptRoot ".env"
+try {
+    # 0. Load Variables
+    $password = $env:BW_PASSWORD; $email = $env:BW_EMAIL; $role = $env:ROLE; $hostname = $env:HOSTNAME; $userName = $env:USER_NAME; $emailAddress = $env:EMAIL_ADDRESS
+    $shouldPrompt = $true
+
     if (Test-Path $envFile) {
+        Write-Host "`n--- Bitwarden Setup ---" -ForegroundColor Cyan
         Write-Host "Found .env file. Parsing for automation variables..." -ForegroundColor Gray
         $envContent = Get-Content $envFile
         foreach ($line in $envContent) {
@@ -130,140 +97,95 @@ if (-not $env:BW_SESSION) {
                 if ($key -eq "EMAIL_ADDRESS") { $emailAddress = $val }
             }
         }
-    }
 
-    if ($role -or $hostname -or $userName) {
-        Write-Host "Automation Detected: ROLE=$role, HOSTNAME=$hostname, USER=$userName" -ForegroundColor Cyan
-    }
-
-    $shouldPrompt = $true
-    if ($password) {
-        Write-Host "BW_PASSWORD detected. Attempting automated unlock..." -ForegroundColor Yellow
-        # Check status first
-        $statusObj = bw status | ConvertFrom-Json
-        if ($statusObj.status -eq "unauthenticated") {
-             if ($email) {
-                 Write-Host "Logging in via email and passwordenv..." -ForegroundColor Gray
-                 $env:BW_PASSWORD = $password
-                 bw login $email --passwordenv BW_PASSWORD
-             } else {
-                 Write-Host "Logging in via passwordenv..." -ForegroundColor Gray
-                 $env:BW_PASSWORD = $password
-                 bw login --passwordenv BW_PASSWORD
-             }
+        if ($role -or $hostname -or $userName) {
+            Write-Host "Automation Detected: ROLE=$role, HOSTNAME=$hostname, USER=$userName" -ForegroundColor Cyan
         }
-        
-        $env:BW_PASSWORD = $password
-        # FIX: Capture output as string and take last line to remove CLI chatter
-        $output = (bw unlock --passwordenv BW_PASSWORD --raw | Out-String).Trim() -split "`n" | Select-Object -Last 1
-        
-        # Regex check: Ensure we captured a valid Base64 session key, not instructions
-        if ($LASTEXITCODE -eq 0 -and $output -match '^[A-Za-z0-9+/=]{20,}$') {
-            $env:BW_SESSION = $output.Trim()
-            Write-Host "Syncing Bitwarden vault..." -ForegroundColor Gray
-            bw sync
-            $shouldPrompt = $false
-        } else {
-            Write-Warning "Automated unlock failed. Falling back to interactive mode..."
-        }
-        # Clear sensitive env var after use
-        $env:BW_PASSWORD = $null
-    }
 
-    # 2. Fallback to interactive prompt if automated unlock skipped or failed
-    if ($shouldPrompt) {
-        $response = Read-Host "Bitwarden session not detected. Unlock vault now to provision secrets? (y/n)"
-        if ($response -eq 'y') {
-            # Check status first
+        if ($password) {
+            Write-Host "BW_PASSWORD detected. Attempting automated unlock..." -ForegroundColor Yellow
             $statusObj = bw status | ConvertFrom-Json
-            
             if ($statusObj.status -eq "unauthenticated") {
-                Write-Host "You are not logged in to Bitwarden." -ForegroundColor Yellow
-                Write-Host ">>> STEP 1: Authenticate Device (Login)" -ForegroundColor Cyan
-                bw login
-                Write-Host "Login successful." -ForegroundColor Green
+                Write-Host "Logging in via email and passwordenv..." -ForegroundColor Gray
+                if ($email) { bw login $email --passwordenv BW_PASSWORD } else { bw login --passwordenv BW_PASSWORD }
             }
             
-            # Unlock
-            Write-Host ">>> STEP 2: Decrypt Vault (Unlock)" -ForegroundColor Cyan
-            $output = (bw unlock --raw | Out-String).Trim() -split "`n" | Select-Object -Last 1
+            $env:BW_PASSWORD = $password
+            # FIX: Capture output as string and take last line to remove CLI chatter
+            $output = (bw unlock --passwordenv BW_PASSWORD --raw | Out-String).Trim() -split "`n" | Select-Object -Last 1
             
+            # Regex check: Ensure we captured a valid Base64 session key
+            if ($output -match '^[A-Za-z0-9+/=]{20,}$') {
+                $env:BW_SESSION = $output.Trim()
+                Write-Host "Vault unlocked & synced!" -ForegroundColor Green
+                bw sync | Out-Null
+                $shouldPrompt = $false
+            }
+            $env:BW_PASSWORD = $null
+        }
+    }
+
+    # Fallback to interactive prompt if needed
+    if ($shouldPrompt -and (-not $env:BW_SESSION)) {
+        $response = Read-Host "Bitwarden session not detected. Unlock now? (y/n)"
+        if ($response -eq 'y') {
+            $statusObj = bw status | ConvertFrom-Json
+            if ($statusObj.status -eq "unauthenticated") { bw login }
+            $output = (bw unlock --raw | Out-String).Trim() -split "`n" | Select-Object -Last 1
             if ($output -match '^[A-Za-z0-9+/=]{20,}$') {
                 $env:BW_SESSION = $output.Trim()
                 Write-Host "Vault unlocked!" -ForegroundColor Green
-                Write-Host "Syncing Bitwarden vault..." -ForegroundColor Gray
-                bw sync
-            } else {
-                Write-Warning "Failed to unlock Bitwarden. Secrets will NOT be provisioned. Proceeding with basic installation..."
+                bw sync | Out-Null
             }
         }
     }
-}
 
-# --- Chezmoi Initialization (Final Fix) ---
-Write-Host "`n--- Chezmoi Initialization ---" -ForegroundColor Cyan
+    # --- Chezmoi Initialization (Final Fix) ---
+    Write-Host "`n--- Chezmoi Initialization ---" -ForegroundColor Cyan
+    
+    # Use --promptString=key=value to satisfy template variables during init
+    $chezmoiArgs = @("init", "--force", "--source=$PSScriptRoot")
+    if ($role) { $chezmoiArgs += "--promptString=role=$role" }
+    if ($hostname) { $chezmoiArgs += "--promptString=hostname=$hostname" }
+    if ($userName) { $chezmoiArgs += "--promptString=name=$userName" }
+    if ($emailAddress) { $chezmoiArgs += "--promptString=email=$emailAddress" }
 
-# Use --define instead of --promptString to satisfy both hasKey and promptStringOnce guards
-$chezmoiArgs = @("init", "--force", "--source=$PSScriptRoot")
-if ($role) { $chezmoiArgs += "--define=role=$role" }
-if ($hostname) { $chezmoiArgs += "--define=hostname=$hostname" }
-if ($userName) { $chezmoiArgs += "--define=name=$userName" }
-if ($emailAddress) { $chezmoiArgs += "--define=email=$emailAddress" }
-
-Write-Host "Executing: chezmoi $($chezmoiArgs -join ' ')" -ForegroundColor Gray
-
-try {
+    Write-Host "Executing: chezmoi $($chezmoiArgs -join ' ')" -ForegroundColor Gray
     & $CHEZMOI_BIN @chezmoiArgs
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "Chezmoi init failed. Try manual: chezmoi init --source=$PSScriptRoot"
-    }
+    if ($LASTEXITCODE -ne 0) { throw "Chezmoi init failed. Try manual: chezmoi init --source=$PSScriptRoot" }
 
     Write-Host "Verifying source path..." -ForegroundColor Gray
     & $CHEZMOI_BIN --source="$PSScriptRoot" source-path
 
     Write-Host "Applying dotfiles..." -ForegroundColor Green
-    # Add --source insurance to ensure apply finds the repo even if config init was shaky
     & $CHEZMOI_BIN apply --source="$PSScriptRoot" --force
+    if ($LASTEXITCODE -ne 0) { throw "Failed to apply dotfiles." }
 
-    if ($LASTEXITCODE -ne 0) {
-        throw "Failed to apply dotfiles. Please check the logs above."
-    }
-
-    # Cleanup default keys to avoid confusion (Migration to id_ed25519_dotfiles_master)
+    # --- Post-Install Tasks ---
+    # Migration/Backup
     if (Test-Path "$HOME/.ssh/id_ed25519") {
-        Write-Host "Backing up legacy default key ($HOME/.ssh/id_ed25519)..." -ForegroundColor Yellow
+        Write-Host "Backing up legacy keys..." -ForegroundColor Yellow
         Rename-Item "$HOME/.ssh/id_ed25519" "id_ed25519.bak" -Force -ErrorAction SilentlyContinue
         Rename-Item "$HOME/.ssh/id_ed25519.pub" "id_ed25519.pub.bak" -Force -ErrorAction SilentlyContinue
     }
-    if (Test-Path "$HOME/.ssh/id_ed25519_dotfiles") {
-         Write-Host "Backing up legacy dotfiles key..." -ForegroundColor Yellow
-         Rename-Item "$HOME/.ssh/id_ed25519_dotfiles" "id_ed25519_dotfiles.bak" -Force -ErrorAction SilentlyContinue
-         Rename-Item "$HOME/.ssh/id_ed25519_dotfiles.pub" "id_ed25519_dotfiles.pub.bak" -Force -ErrorAction SilentlyContinue
-    }
 
-    Write-Host "Applying PowerShell Profile dynamically..." -ForegroundColor Green
-    $PROFILE_DIR = Split-Path $PROFILE -Parent
-    if (-not (Test-Path $PROFILE_DIR)) { New-Item -ItemType Directory -Force -Path $PROFILE_DIR | Out-Null }
-
-    # Render template using chezmoi and write to the active profile path
+    # Profile Rendering
     $templatePath = Join-Path $PSScriptRoot "powershell_profile.ps1.tmpl"
     if (Test-Path $templatePath) {
-        Write-Host "- Rendering profile template..." -ForegroundColor Gray
+        Write-Host "Rendering PowerShell Profile..." -ForegroundColor Gray
         $rendered = Get-Content $templatePath -Raw | & $CHEZMOI_BIN execute-template --source $PSScriptRoot
-        
         if ($LASTEXITCODE -eq 0 -and $rendered) {
+            $PROFILE_DIR = Split-Path $PROFILE -Parent
+            if (-not (Test-Path $PROFILE_DIR)) { New-Item -ItemType Directory -Force $PROFILE_DIR | Out-Null }
             $rendered | Set-Content -Path $PROFILE -Force -Encoding UTF8
-            Write-Host "Profile applied to: $PROFILE" -ForegroundColor Green
-        } else {
-            Write-Error "Failed to render PowerShell profile template. Keeping existing profile."
+            Write-Host "Profile applied: $PROFILE" -ForegroundColor Green
         }
     }
 
-    Write-Host "`n✨ Setup complete! Please restart your terminal to reload environment variables." -ForegroundColor Cyan
+    Write-Host "`n✨ Setup Complete! Please restart your terminal." -ForegroundColor Cyan
 }
 catch {
-    Write-Error $_.Exception.Message
+    Write-Error "Error occurred: $($_.Exception.Message)"
     exit 1
 }
 finally {
