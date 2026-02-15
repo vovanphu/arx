@@ -14,36 +14,28 @@ My personal dotfiles managed by [chezmoi](https://chezmoi.io).
 ### 2. Quick Start
 
 #### 🪟 Windows (PowerShell Administrator)
-The script will automatically install `chezmoi`, `bitwarden-cli`, `git`, `tailscale`, configure `ssh-agent`, and provision your keys.
+The script automatically installs `chezmoi`, `bitwarden-cli`, `git`, `tailscale`, and provisions keys.
 
-```powershell
-# Run this valid one-liner in PowerShell Administrator:
-irm https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.ps1 | iex
-```
-
-#### 🤖 Automated Mode (Non-interactive)
-To run the installation without any prompts (ideal for VMs or fresh installs), create a `.env` file in your **current directory** before running the one-liner.
-
-**PowerShell (Windows):**
-```powershell
-@("BW_EMAIL=your_email@example.com", "BW_PASSWORD=your_password") | Set-Content .env
-```
-
-**Bash (Linux/WSL):**
-```bash
-echo "BW_EMAIL=your_email@example.com" > .env
-echo "BW_PASSWORD=your_password" >> .env
-```
-
-The script will detect these and handle Bitwarden login/unlock automatically.
+*   **Option A: Interactive** (Prompts for secrets):
+    ```powershell
+    irm https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.ps1 | iex
+    ```
+*   **Option B: Automated** (Zero-touch):
+    ```powershell
+    @("BW_EMAIL=your@email.com", "BW_PASSWORD=your_pass") | Set-Content .env; irm https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.ps1 | iex
+    ```
 
 #### 🐧 Linux / WSL
-The script handles dependency checks (`unzip`, `curl`), Bitwarden login, and SSH agent reuse for WSL.
+Handles dependency checks, Bitwarden authentication, and SSH agent reuse.
 
-```bash
-# Run this valid one-liner:
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.sh)"
-```
+*   **Option A: Interactive**:
+    ```bash
+    bash -c "$(curl -fsSL https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.sh)"
+    ```
+*   **Option B: Automated**:
+    ```bash
+    echo "BW_EMAIL=your@email.com" > .env; echo "BW_PASSWORD=your_pass" >> .env; bash -c "$(curl -fsSL https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.sh)"
+    ```
 
 ---
 
