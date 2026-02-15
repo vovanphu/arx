@@ -12,13 +12,13 @@
 {{   $name = promptStringOnce . "name" "User name" "vovanphu" }}
 {{ end }}
 
-{{ /* OS and Environment Detection */ }}
+{{/* OS and Environment Detection */}}
 {{ $is_wsl := false }}
 {{ if (env "WSL_DISTRO_NAME") }}
 {{   $is_wsl = true }}
 {{ end }}
 
-{{ /* Machine Role Selection */ }}
+{{/* Machine Role Selection */}}
 {{ $role := "" }}
 {{ if env "ROLE" }}
 {{   $role = env "ROLE" }}
@@ -30,7 +30,7 @@
 {{   $role = promptStringOnce . "role" "Machine Role" $role_default }}
 {{ end }}
 
-{{ /* Hostname Selection */ }}
+{{/* Hostname Selection */}}
 {{ $hostname_selection := "" }}
 {{ if env "HOSTNAME" }}
 {{   $hostname_selection = env "HOSTNAME" }}
@@ -38,10 +38,11 @@
 {{   $hostname_selection = promptStringOnce . "hostname" "Enter Hostname" "custom" }}
 {{ end }}
 
-{{ /* If custom, ask for custom hostname (fallback for interactive use) */ }}
+{{/* If custom, ask for custom hostname (fallback for interactive use) */}}
 {{ if eq $hostname_selection "custom" }}
 {{   $hostname_selection = promptString "Enter Custom Hostname" }}
 {{ end }}
+
 
 sourceDir: {{ .chezmoi.sourceDir | quote }}
 {{- if eq .chezmoi.os "windows" }}
