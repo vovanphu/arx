@@ -1,4 +1,4 @@
-{{- if ne .chezmoi.os "windows" -}}
+{{ if ne .chezmoi.os "windows" }}
 #!/bin/bash
 
 # Trigger execution when these templates change:
@@ -44,4 +44,4 @@ if [ -d "$SSH_DIR" ]; then
 else
     echo -e "${YELLOW}SSH Directory not found at $SSH_DIR${NC}"
 fi
-{{- end -}}
+{{ end }}

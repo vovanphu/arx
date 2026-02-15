@@ -1,4 +1,4 @@
-{{- if eq .chezmoi.os "linux" -}}
+{{ if eq .chezmoi.os "linux" }}
 #!/bin/bash
 # run_once_after_99-configure-system.sh.tmpl
 
@@ -90,4 +90,4 @@ if [ "$CURRENT_NAME" != "$TARGET_NAME" ]; then
 else
     echo -e "\033[32mSystem Hostname is already synced.\033[0m"
 fi
-{{- end -}}
+{{ end }}

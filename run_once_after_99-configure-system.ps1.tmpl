@@ -1,4 +1,4 @@
-{{- if eq .chezmoi.os "windows" -}}
+{{ if eq .chezmoi.os "windows" }}
 # run_once_after_99-configure-system.ps1.tmpl
 # This script manages system-level configurations like Hostname and Tailscale.
 
@@ -52,6 +52,8 @@ if ($tailscaleBin) {
          Write-Host "Tailscale is already logged in. Updating hostname preference..." -ForegroundColor Green
          & $tailscaleBin set --hostname $targetName
     }
+} else {
+    Write-Warning "Tailscale binary not found in PATH or standard locations. Skipping auto-config."
 }
 
 # 2. OS Hostname Configuration (Prompt)
@@ -71,4 +73,5 @@ if ($currentName -ne $targetName) {
 } else {
     Write-Host "System Hostname is already synced ($targetName)." -ForegroundColor Green
 }
-{{- end -}}
+{{ end }}
+

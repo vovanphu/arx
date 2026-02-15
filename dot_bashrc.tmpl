@@ -1,9 +1,9 @@
 # .bashrc - Managed by Chezmoi
 
 # Unified Aliases
-{{ range $alias, $command := .commonAliases -}}
+{{ range $alias, $command := .commonAliases }}
 alias {{ $alias }}='{{ $command }}'
-{{ end -}}
+{{ end }}
 
 # Add local bin to path (MUST be before Starship init)
 if [ -d "$HOME/.local/bin" ] ; then
@@ -20,28 +20,28 @@ export MACHINE_ROLE={{ .role | quote }}
 
 # Welcome Message
 if [[ "$-" == *i* ]]; then
-{{- if eq .role "centaur" }}
+{{ if eq .role "centaur" }}
     echo -e "\033[0;36mNuclear Football Active: Entering Centaur Environment...\033[0m"
-{{- else if eq .role "chimera" }}
+{{ else if eq .role "chimera" }}
     echo -e "\033[0;32mEntering Chimera Environment...\033[0m"
-{{- else if eq .role "griffin" }}
+{{ else if eq .role "griffin" }}
     echo -e "\033[0;34mEntering Griffin Environment...\033[0m"
-{{- else if or (eq .role "cyclops") (eq .role "hydra") (eq .role "server") }}
+{{ else if or (eq .role "cyclops") (eq .role "hydra") (eq .role "server") }}
     echo -e "\033[0;33mEntering Server Environment... [SAFE MODE]\033[0m"
-{{- else }}
+{{ else }}
     echo -e "\033[0;90mEntering Dotfiles Environment (Role: {{ .role }})...\033[0m"
-{{- end }}
+{{ end }}
 fi
 
 # Role-specific logic
-{{- if or (eq .role "cyclops") (eq .role "hydra") (eq .role "server") }}
+{{ if or (eq .role "cyclops") (eq .role "hydra") (eq .role "server") }}
 # Add warning prompt for servers
 export PS1="\[\033[01;31m\][SERVER]\[\033[00m\] \u@\h:\w\$ "
 
 # Optimization: Limit History to save I/O and Disk
 export HISTSIZE=1000
 export HISTFILESIZE=2000
-{{- end }}
+{{ end }}
 
 # Bitwarden Helper: Auto-unlock if needed
 bw-unlock() {

@@ -14,17 +14,18 @@ $env:EDITOR = {{ .editor | quote }}
 $env:MACHINE_ROLE = {{ .role | quote }}
 
 # Welcome message
-{{- if eq .role "centaur" }}
+{{ if eq .role "centaur" }}
 Write-Host "Nuclear Football Active: Entering Centaur Environment..." -ForegroundColor Cyan
-{{- else if eq .role "chimera" }}
+{{ else if eq .role "chimera" }}
 Write-Host "Entering Chimera Environment..." -ForegroundColor Green
-{{- else if eq .role "griffin" }}
+{{ else if eq .role "griffin" }}
 Write-Host "Entering Griffin Environment..." -ForegroundColor Blue
-{{- else if or (eq .role "cyclops") (eq .role "hydra") (eq .role "server") }}
+{{ else if or (eq .role "cyclops") (eq .role "hydra") (eq .role "server") }}
 Write-Host "Entering Server Environment... [SAFE MODE]" -ForegroundColor Yellow
-{{- else }}
+{{ else }}
 Write-Host "Entering Dotfiles Environment (Role: {{ .role }})..." -ForegroundColor Gray
-{{- end }}
+{{ end }}
+
 
 # --- SSH Agent Auto-Load ---
 # Ensure ssh-agent is running

@@ -1,4 +1,4 @@
-{{- if eq .chezmoi.os "linux" -}}
+{{ if eq .chezmoi.os "linux" }}
 #!/bin/bash
 
 # run_once_install-packages.sh.tmpl
@@ -29,21 +29,21 @@ if ! command_exists tailscale; then
     curl -fsSL https://tailscale.com/install.sh | sh
 fi
 
-{{- $pkgData := include "packages.yaml" | fromYaml -}}
-{{- $linuxData := $pkgData.linux -}}
+{{ $pkgData := include "packages.yaml" | fromYaml }}
+{{ $linuxData := $pkgData.linux }}
 
 # Define minimal base packages (String list for POSIX compatibility)
 PACKAGES=""
-{{- range $linuxData.common -}}
+{{ range $linuxData.common }}
     PACKAGES="$PACKAGES {{ . }}"
-{{- end -}}
+{{ end }}
 
 # Core Tools (Excluded from headless 'server' roles to save resources)
 # Only install 'extras' (Neovim, Ripgrep, Starship) on Interactive roles:
 if [ "{{ .role }}" = "centaur" ] || [ "{{ .role }}" = "chimera" ] || [ "{{ .role }}" = "griffin" ]; then
-    {{- range $linuxData.extras -}}
+    {{ range $linuxData.extras }}
     PACKAGES="$PACKAGES {{ . }}"
-    {{- end -}}
+    {{ end }}
 fi
 
 # Role-specific packages
@@ -122,4 +122,4 @@ if [[ "{{ .role }}" == "centaur" || "{{ .role }}" == "chimera" || "{{ .role }}" 
 fi
 
 echo "Linux Package Installation Complete!"
-{{- end -}}
+{{ end }}

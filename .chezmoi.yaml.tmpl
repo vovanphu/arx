@@ -1,47 +1,48 @@
-{{- $email := "" -}}
-{{- if env "EMAIL_ADDRESS" -}}
-{{-   $email = env "EMAIL_ADDRESS" -}}
-{{- else -}}
-{{-   $email = promptStringOnce . "email" "Email address" "vovanphu1012@gmail.com" -}}
-{{- end -}}
+{{ $email := "" }}
+{{ if env "EMAIL_ADDRESS" }}
+{{   $email = env "EMAIL_ADDRESS" }}
+{{ else }}
+{{   $email = promptStringOnce . "email" "Email address" "vovanphu1012@gmail.com" }}
+{{ end }}
 
-{{- $name := "" -}}
-{{- if env "USER_NAME" -}}
-{{-   $name = env "USER_NAME" -}}
-{{- else -}}
-{{-   $name = promptStringOnce . "name" "User name" "vovanphu" -}}
-{{- end -}}
+{{ $name := "" }}
+{{ if env "USER_NAME" }}
+{{   $name = env "USER_NAME" }}
+{{ else }}
+{{   $name = promptStringOnce . "name" "User name" "vovanphu" }}
+{{ end }}
 
-{{- /* OS and Environment Detection */ -}}
-{{- $is_wsl := false -}}
-{{- if (env "WSL_DISTRO_NAME") -}}
-{{-   $is_wsl = true -}}
-{{- end -}}
+{{ /* OS and Environment Detection */ }}
+{{ $is_wsl := false }}
+{{ if (env "WSL_DISTRO_NAME") }}
+{{   $is_wsl = true }}
+{{ end }}
 
-{{- /* Machine Role Selection */ -}}
-{{- $role := "" -}}
-{{- if env "ROLE" -}}
-{{-   $role = env "ROLE" -}}
-{{- else -}}
-{{-   $role_default := "chimera" -}}
-{{-   if not (or (eq .chezmoi.os "windows") $is_wsl) -}}
-{{-     $role_default = "cyclops" -}}
-{{-   end -}}
-{{-   $role = promptStringOnce . "role" "Machine Role" $role_default -}}
-{{- end -}}
+{{ /* Machine Role Selection */ }}
+{{ $role := "" }}
+{{ if env "ROLE" }}
+{{   $role = env "ROLE" }}
+{{ else }}
+{{   $role_default := "chimera" }}
+{{   if not (or (eq .chezmoi.os "windows") $is_wsl) }}
+{{     $role_default = "cyclops" }}
+{{   end }}
+{{   $role = promptStringOnce . "role" "Machine Role" $role_default }}
+{{ end }}
 
-{{- /* Hostname Selection */ -}}
-{{- $hostname_selection := "" -}}
-{{- if env "HOSTNAME" -}}
-{{-   $hostname_selection = env "HOSTNAME" -}}
-{{- else -}}
-{{-   $hostname_selection = promptStringOnce . "hostname" "Enter Hostname" "custom" -}}
-{{- end -}}
+{{ /* Hostname Selection */ }}
+{{ $hostname_selection := "" }}
+{{ if env "HOSTNAME" }}
+{{   $hostname_selection = env "HOSTNAME" }}
+{{ else }}
+{{   $hostname_selection = promptStringOnce . "hostname" "Enter Hostname" "custom" }}
+{{ end }}
 
-{{- /* If custom, ask for custom hostname (fallback for interactive use) */ -}}
-{{- if eq $hostname_selection "custom" -}}
-{{-   $hostname_selection = promptString "Enter Custom Hostname" -}}
-{{- end -}}
+{{ /* If custom, ask for custom hostname (fallback for interactive use) */ }}
+{{ if eq $hostname_selection "custom" }}
+{{   $hostname_selection = promptString "Enter Custom Hostname" }}
+{{ end }}
+
 sourceDir: {{ .chezmoi.sourceDir | quote }}
 {{- if eq .chezmoi.os "windows" }}
 pager: ""
