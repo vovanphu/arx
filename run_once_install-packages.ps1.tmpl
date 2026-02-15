@@ -8,26 +8,26 @@ Write-Host "Starting Windows Package Installation via Winget..." -ForegroundColo
 {{- $winData := $pkgData.windows -}}
 
 $packages = @()
-{{ range $winData.common -}}
+{{ range $winData.common }}
 $packages += "{{ . }}"
-{{ end -}}
+{{- end }}
 
 # Only install 'extras' on Interactive roles:
 if ("{{ .role }}" -eq "centaur" -or "{{ .role }}" -eq "chimera" -or "{{ .role }}" -eq "griffin") {
-    {{ range $winData.extras -}}
+    {{ range $winData.extras }}
     $packages += "{{ . }}"
-    {{ end -}}
+    {{- end }}
 }
 
 # Role-specific packages
 {{ if hasKey $winData.roles .role -}}
     {{- $rolePkgs := index $winData.roles .role -}}
     {{- if $rolePkgs -}}
-        {{- range $rolePkgs -}}
+        {{- range $rolePkgs }}
         $packages += "{{ . }}"
-        {{- end -}}
-    {{- end -}}
-{{- end -}}
+        {{- end }}
+    {{- end }}
+{{- end }}
 
 function Install-Package {
     param([string]$id)
@@ -64,10 +64,11 @@ $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";
 Write-Host "Windows Package Installation Complete!" -ForegroundColor Green
 
 # Configure SSH Agent
-Write-Host "Configuring SSH Agent..." -ForegroundColor Cyan
+Write-Host "Configure SSH Agent..." -ForegroundColor Cyan
 Set-Service -Name ssh-agent -StartupType Automatic -ErrorAction SilentlyContinue
 Start-Service ssh-agent -ErrorAction SilentlyContinue
 
 {{- end -}}
+
 
 
