@@ -108,12 +108,12 @@ if (-not $env:BW_SESSION) {
         Write-Host "Found .env file. Parsing for automation variables..." -ForegroundColor Gray
         $envContent = Get-Content $envFile
         foreach ($line in $envContent) {
-            if ($line -match "^BW_PASSWORD=(.*)$") { $password = $matches[1].Trim() }
-            if ($line -match "^BW_EMAIL=(.*)$") { $email = $matches[1].Trim() }
-            if ($line -match "^ROLE=(.*)$") { $role = $matches[1].Trim() }
-            if ($line -match "^HOSTNAME=(.*)$") { $hostname = $matches[1].Trim() }
-            if ($line -match "^USER_NAME=(.*)$") { $userName = $matches[1].Trim() }
-            if ($line -match "^EMAIL_ADDRESS=(.*)$") { $emailAddress = $matches[1].Trim() }
+            if ($line -match "^BW_PASSWORD=(.*)$") { $password = $matches[1].Trim(" `"'") }
+            if ($line -match "^BW_EMAIL=(.*)$") { $email = $matches[1].Trim(" `"'") }
+            if ($line -match "^ROLE=(.*)$") { $role = $matches[1].Trim(" `"'") }
+            if ($line -match "^HOSTNAME=(.*)$") { $hostname = $matches[1].Trim(" `"'") }
+            if ($line -match "^USER_NAME=(.*)$") { $userName = $matches[1].Trim(" `"'") }
+            if ($line -match "^EMAIL_ADDRESS=(.*)$") { $emailAddress = $matches[1].Trim(" `"'") }
         }
     }
 
@@ -183,13 +183,13 @@ Write-Host "`n--- Chezmoi Initialization ---" -ForegroundColor Cyan
 Write-Host "Initializing Chezmoi with source: $PSScriptRoot" -ForegroundColor Cyan
 
 # Prepare init arguments
-$initArgs = @("init", "--source", "$PSScriptRoot", "--force")
+$initArgs = @("--source", "$PSScriptRoot", "--force")
 if ($role) { $initArgs += @("--data", "role=$role") }
 if ($hostname) { $initArgs += @("--data", "hostname=$hostname") }
 if ($userName) { $initArgs += @("--data", "name=$userName") }
 if ($emailAddress) { $initArgs += @("--data", "email=$emailAddress") }
 
-& $CHEZMOI_BIN $initArgs
+& $CHEZMOI_BIN init $initArgs
 
 Write-Host "Verifying source path..." -ForegroundColor Gray
 & $CHEZMOI_BIN source-path
