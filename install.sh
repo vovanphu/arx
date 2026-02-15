@@ -134,23 +134,21 @@ if [ -z "${BW_SESSION:-}" ]; then
     fi
 fi
 
-# --- Chezmoi Initialization (Final Fix) ---
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# --- Chezmoi Initialization (The "Invisible" Version) ---
 echo "--- Chezmoi Initialization ---"
-echo "Initializing Chezmoi with source: $SCRIPT_DIR"
+echo "Initializing Chezmoi with environment variables..."
 
 # Ensure .env is deleted on exit (secure cleanup)
 trap 'rm -f .env' EXIT
 
-# Prepare init arguments - use --promptString to satisfy stable keys in template
-INIT_ARGS=("init" "--force" "--source=$SCRIPT_DIR")
-[ -n "$EMAIL_ADDRESS_VAR" ] && INIT_ARGS+=("--promptString=email=$EMAIL_ADDRESS_VAR")
-[ -n "$USER_NAME_VAR" ]     && INIT_ARGS+=("--promptString=name=$USER_NAME_VAR")
-[ -n "$ROLE_VAR" ]          && INIT_ARGS+=("--promptString=role=$ROLE_VAR")
-[ -n "$HOSTNAME_VAR" ]      && INIT_ARGS+=("--promptString=hostname=$HOSTNAME_VAR")
+# Export environment variables for the template to read directly
+export ROLE="$ROLE_VAR"
+export HOSTNAME="$HOSTNAME_VAR"
+export USER_NAME="$USER_NAME_VAR"
+export EMAIL_ADDRESS="$EMAIL_ADDRESS_VAR"
 
-# Chiêu "Gậy ông đập lưng ông": Pipe thêm phím Enter (\n) để "bypass" nếu có prompt rác
-printf "\n\n\n\n" | "$CHEZMOI_BIN" "${INIT_ARGS[@]}"
+"$CHEZMOI_BIN" init --force --source="$SCRIPT_DIR"
 if [ $? -ne 0 ]; then echo "Error: Chezmoi init failed."; exit 1; fi
 
 echo "Applying dotfiles..."

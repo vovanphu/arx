@@ -140,23 +140,18 @@ try {
         }
     }
 
-    # --- Chezmoi Initialization (The "No-Talk" Version) ---
+    # --- Chezmoi Initialization (The "Invisible" Version) ---
     Write-Host "`n--- Chezmoi Initialization ---" -ForegroundColor Cyan
     
-    # Use split-argument splatting (safest for PowerShell 5.1)
-    $chezmoiArgs = @("init", "--force", "--source=$PSScriptRoot")
-    
-    # Match keys exactly with promptStringOnce in template
-    if ($emailAddress) { $chezmoiArgs += "--promptString"; $chezmoiArgs += "email=$emailAddress" }
-    if ($userName)     { $chezmoiArgs += "--promptString"; $chezmoiArgs += "name=$userName" }
-    if ($role)         { $chezmoiArgs += "--promptString"; $chezmoiArgs += "role=$role" }
-    if ($hostname)     { $chezmoiArgs += "--promptString"; $chezmoiArgs += "hostname=$hostname" }
+    # Set environment variables for the template to read directly
+    $env:ROLE = $role
+    $env:HOSTNAME = $hostname
+    $env:USER_NAME = $userName
+    $env:EMAIL_ADDRESS = $emailAddress
 
-    Write-Host "Executing: chezmoi $($chezmoiArgs -join ' ')" -ForegroundColor Gray
-
-    # Chiêu "Gậy ông đập lưng ông": Pipe thêm phím Enter (\n) để "bypass" nếu có prompt rác
-    "`n`n`n`n" | & $CHEZMOI_BIN @chezmoiArgs
-    if ($LASTEXITCODE -ne 0) { throw "Chezmoi init failed. Try manual: chezmoi init --source=$PSScriptRoot" }
+    Write-Host "Initializing chezmoi with environment variables..." -ForegroundColor Gray
+    & $CHEZMOI_BIN init --force --source="$PSScriptRoot"
+    if ($LASTEXITCODE -ne 0) { throw "Chezmoi init failed. Check for template errors." }
 
     Write-Host "Applying dotfiles..." -ForegroundColor Green
     & $CHEZMOI_BIN apply --source="$PSScriptRoot" --force

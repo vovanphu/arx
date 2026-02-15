@@ -1,5 +1,6 @@
-{{- $email := promptStringOnce . "email" "Email address" "vovanphu1012@gmail.com" -}}
-{{- $name := promptStringOnce . "name" "User name" "vovanphu" -}}
+{{- /* 1. Ưu tiên lấy từ biến môi trường, nếu không có mới dùng promptStringOnce làm dự phòng */ -}}
+{{- $email := env "EMAIL_ADDRESS" | default (promptStringOnce . "email" "Email address" "vovanphu1012@gmail.com") -}}
+{{- $name := env "USER_NAME" | default (promptStringOnce . "name" "User name" "vovanphu") -}}
 
 {{- /* OS and Environment Detection */ -}}
 {{- $is_wsl := false -}}
@@ -12,10 +13,11 @@
 {{- if not (or (eq .chezmoi.os "windows") $is_wsl) -}}
 {{-   $role_default = "cyclops" -}}
 {{- end -}}
-{{- $role := promptStringOnce . "role" "Machine Role" $role_default -}}
+{{- /* Lấy ROLE từ env hoặc fallback */ -}}
+{{- $role := env "ROLE" | default (promptStringOnce . "role" "Machine Role" $role_default) -}}
 
 {{- /* Hostname Selection */ -}}
-{{- $hostname_selection := promptStringOnce . "hostname" "Enter Hostname" "custom" -}}
+{{- $hostname_selection := env "HOSTNAME" | default (promptStringOnce . "hostname" "Enter Hostname" "custom") -}}
 
 {{- /* If custom, ask for custom hostname (fallback for interactive use) */ -}}
 {{- if eq $hostname_selection "custom" -}}
