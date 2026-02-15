@@ -39,9 +39,13 @@ if (-not $PSScriptRoot) {
     
     # 3. Handover to local script
     Write-Host "Handing over to local install script..." -ForegroundColor Green
+    if (Test-Path ".env") {
+        Write-Host "Propagating .env to repository directory..." -ForegroundColor Gray
+        Copy-Item ".env" -Destination $DEST_DIR -Force
+    }
     Set-Location $DEST_DIR
-    & "$DEST_DIR\install.ps1"
-    exit
+    & ".\install.ps1"
+    return # Use return instead of exit to keep the terminal open for the user
 }
 # ------------------------------
 

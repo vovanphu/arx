@@ -12,13 +12,24 @@ Write-Host "--- System Configuration ---" -ForegroundColor Cyan
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 
 $tailscaleBin = Get-Command tailscale -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
-if (-not $tailscaleBin -and (Test-Path "C:\Program Files\Tailscale\tailscale.exe")) {
-    $tailscaleBin = "C:\Program Files\Tailscale\tailscale.exe"
+$commonPaths = @(
+    "C:\Program Files\Tailscale\tailscale.exe",
+    "C:\Program Files (x86)\Tailscale\tailscale.exe",
+    "$env:LOCALAPPDATA\Tailscale\tailscale.exe"
+)
+
+if (-not $tailscaleBin) {
+    foreach ($path in $commonPaths) {
+        if (Test-Path $path) {
+            $tailscaleBin = $path
+            break
+        }
+    }
 }
 
 if ($tailscaleBin) {
     Write-Host "Found Tailscale at: $tailscaleBin. Checking status..." -ForegroundColor Cyan
-    $status = & $tailscaleBin status 2>&1
+    $status = & $tailscaleBin status --peers=false 2>&1 | Out-String
     
     if ($status -match "Logged out" -or $status -match "Tailscale is stopped") {
         Write-Host "Tailscale is not logged in. Attempting auto-auth via Bitwarden..." -ForegroundColor Yellow
