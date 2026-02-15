@@ -200,70 +200,76 @@ if (-not $env:BW_SESSION) {
     }
 }
 
-# --- Chezmoi Initialization (Definitive Fix) ---
+# --- Chezmoi Initialization (Final Fix) ---
 Write-Host "`n--- Chezmoi Initialization ---" -ForegroundColor Cyan
 
-# Use --flag=value syntax to ensure PowerShell 5.1 passes arguments correctly to Go binary
+# Use --promptString instead of --data for template variables during init
 $chezmoiArgs = @("init", "--force", "--source=$PSScriptRoot")
-if ($role) { $chezmoiArgs += "--data=role=$role" }
-if ($hostname) { $chezmoiArgs += "--data=hostname=$hostname" }
-if ($userName) { $chezmoiArgs += "--data=name=$userName" }
-if ($emailAddress) { $chezmoiArgs += "--data=email=$emailAddress" }
+if ($role) { $chezmoiArgs += "--promptString=role=$role" }
+if ($hostname) { $chezmoiArgs += "--promptString=hostname=$hostname" }
+if ($userName) { $chezmoiArgs += "--promptString=name=$userName" }
+if ($emailAddress) { $chezmoiArgs += "--promptString=email=$emailAddress" }
 
 Write-Host "Executing: chezmoi $($chezmoiArgs -join ' ')" -ForegroundColor Gray
-& $CHEZMOI_BIN @chezmoiArgs
 
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Chezmoi init failed. Try manual: chezmoi init --source=$PSScriptRoot"
-    exit 1
-}
+try {
+    & $CHEZMOI_BIN @chezmoiArgs
 
-Write-Host "Verifying source path..." -ForegroundColor Gray
-& $CHEZMOI_BIN --source="$PSScriptRoot" source-path
-
-Write-Host "Applying dotfiles..." -ForegroundColor Green
-# Add --source insurance to ensure apply finds the repo even if config init was shaky
-& $CHEZMOI_BIN apply --source="$PSScriptRoot" --force
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to apply dotfiles. Please check the logs above."
-    exit 1
-}
-
-# Cleanup default keys to avoid confusion (Migration to id_ed25519_dotfiles_master)
-if (Test-Path "$HOME/.ssh/id_ed25519") {
-    Write-Host "Backing up legacy default key ($HOME/.ssh/id_ed25519)..." -ForegroundColor Yellow
-    Rename-Item "$HOME/.ssh/id_ed25519" "id_ed25519.bak" -Force -ErrorAction SilentlyContinue
-    Rename-Item "$HOME/.ssh/id_ed25519.pub" "id_ed25519.pub.bak" -Force -ErrorAction SilentlyContinue
-}
-if (Test-Path "$HOME/.ssh/id_ed25519_dotfiles") {
-     Write-Host "Backing up legacy dotfiles key..." -ForegroundColor Yellow
-     Rename-Item "$HOME/.ssh/id_ed25519_dotfiles" "id_ed25519_dotfiles.bak" -Force -ErrorAction SilentlyContinue
-     Rename-Item "$HOME/.ssh/id_ed25519_dotfiles.pub" "id_ed25519_dotfiles.pub.bak" -Force -ErrorAction SilentlyContinue
-}
-
-Write-Host "Applying PowerShell Profile dynamically..." -ForegroundColor Green
-$PROFILE_DIR = Split-Path $PROFILE -Parent
-if (-not (Test-Path $PROFILE_DIR)) { New-Item -ItemType Directory -Force -Path $PROFILE_DIR | Out-Null }
-
-# Render template using chezmoi and write to the active profile path
-$templatePath = Join-Path $PSScriptRoot "powershell_profile.ps1.tmpl"
-if (Test-Path $templatePath) {
-    Write-Host "- Rendering profile template..." -ForegroundColor Gray
-    $rendered = Get-Content $templatePath -Raw | & $CHEZMOI_BIN execute-template --source $PSScriptRoot
-    
-    if ($LASTEXITCODE -eq 0 -and $rendered) {
-        $rendered | Set-Content -Path $PROFILE -Force -Encoding UTF8
-        Write-Host "Profile applied to: $PROFILE" -ForegroundColor Green
-    } else {
-        Write-Error "Failed to render PowerShell profile template. Keeping existing profile."
+    if ($LASTEXITCODE -ne 0) {
+        throw "Chezmoi init failed. Try manual: chezmoi init --source=$PSScriptRoot"
     }
+
+    Write-Host "Verifying source path..." -ForegroundColor Gray
+    & $CHEZMOI_BIN --source="$PSScriptRoot" source-path
+
+    Write-Host "Applying dotfiles..." -ForegroundColor Green
+    # Add --source insurance to ensure apply finds the repo even if config init was shaky
+    & $CHEZMOI_BIN apply --source="$PSScriptRoot" --force
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to apply dotfiles. Please check the logs above."
+    }
+
+    # Cleanup default keys to avoid confusion (Migration to id_ed25519_dotfiles_master)
+    if (Test-Path "$HOME/.ssh/id_ed25519") {
+        Write-Host "Backing up legacy default key ($HOME/.ssh/id_ed25519)..." -ForegroundColor Yellow
+        Rename-Item "$HOME/.ssh/id_ed25519" "id_ed25519.bak" -Force -ErrorAction SilentlyContinue
+        Rename-Item "$HOME/.ssh/id_ed25519.pub" "id_ed25519.pub.bak" -Force -ErrorAction SilentlyContinue
+    }
+    if (Test-Path "$HOME/.ssh/id_ed25519_dotfiles") {
+         Write-Host "Backing up legacy dotfiles key..." -ForegroundColor Yellow
+         Rename-Item "$HOME/.ssh/id_ed25519_dotfiles" "id_ed25519_dotfiles.bak" -Force -ErrorAction SilentlyContinue
+         Rename-Item "$HOME/.ssh/id_ed25519_dotfiles.pub" "id_ed25519_dotfiles.pub.bak" -Force -ErrorAction SilentlyContinue
+    }
+
+    Write-Host "Applying PowerShell Profile dynamically..." -ForegroundColor Green
+    $PROFILE_DIR = Split-Path $PROFILE -Parent
+    if (-not (Test-Path $PROFILE_DIR)) { New-Item -ItemType Directory -Force -Path $PROFILE_DIR | Out-Null }
+
+    # Render template using chezmoi and write to the active profile path
+    $templatePath = Join-Path $PSScriptRoot "powershell_profile.ps1.tmpl"
+    if (Test-Path $templatePath) {
+        Write-Host "- Rendering profile template..." -ForegroundColor Gray
+        $rendered = Get-Content $templatePath -Raw | & $CHEZMOI_BIN execute-template --source $PSScriptRoot
+        
+        if ($LASTEXITCODE -eq 0 -and $rendered) {
+            $rendered | Set-Content -Path $PROFILE -Force -Encoding UTF8
+            Write-Host "Profile applied to: $PROFILE" -ForegroundColor Green
+        } else {
+            Write-Error "Failed to render PowerShell profile template. Keeping existing profile."
+        }
+    }
+
+    Write-Host "`n✨ Setup complete! Please restart your terminal to reload environment variables." -ForegroundColor Cyan
 }
-
-Write-Host "Setup complete. Please restart your terminal to reload environment variables." -ForegroundColor Yellow
-
-# Clean up .env file for security
-if (Test-Path $envFile) {
-    Write-Host "Cleaning up security credentials (.env)..." -ForegroundColor Gray
-    Remove-Item $envFile -Force
+catch {
+    Write-Error $_.Exception.Message
+    exit 1
+}
+finally {
+    # LUÔN LUÔN xóa file .env dù thành công hay thất bại
+    if (Test-Path $envFile) {
+        Write-Host "Cleaning up security credentials (.env)..." -ForegroundColor Gray
+        Remove-Item $envFile -Force
+    }
 }

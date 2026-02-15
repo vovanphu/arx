@@ -170,12 +170,19 @@ echo ""
 echo "--- Chezmoi Initialization ---"
 echo "Initializing and Applying Chezmoi with source: $SCRIPT_DIR"
 
-# Prepare init arguments
+# --- Chezmoi Initialization (Final Fix) ---
+echo "--- Chezmoi Initialization ---"
+echo "Initializing and Applying Chezmoi with source: $SCRIPT_DIR"
+
+# Ensure .env is deleted on exit (secure cleanup)
+trap 'rm -f .env' EXIT
+
+# Prepare init arguments - use --promptString instead of --data for template variables
 INIT_ARGS=("init" "--apply" "--source=$SCRIPT_DIR" "--force")
-[ -n "$ROLE_VAR" ] && INIT_ARGS+=("--data=role=$ROLE_VAR")
-[ -n "$HOSTNAME_VAR" ] && INIT_ARGS+=("--data=hostname=$HOSTNAME_VAR")
-[ -n "$USER_NAME_VAR" ] && INIT_ARGS+=("--data=name=$USER_NAME_VAR")
-[ -n "$EMAIL_ADDRESS_VAR" ] && INIT_ARGS+=("--data=email=$EMAIL_ADDRESS_VAR")
+[ -n "$ROLE_VAR" ] && INIT_ARGS+=("--promptString=role=$ROLE_VAR")
+[ -n "$HOSTNAME_VAR" ] && INIT_ARGS+=("--promptString=hostname=$HOSTNAME_VAR")
+[ -n "$USER_NAME_VAR" ] && INIT_ARGS+=("--promptString=name=$USER_NAME_VAR")
+[ -n "$EMAIL_ADDRESS_VAR" ] && INIT_ARGS+=("--promptString=email=$EMAIL_ADDRESS_VAR")
 
 "$CHEZMOI_BIN" "${INIT_ARGS[@]}"
 
