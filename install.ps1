@@ -187,7 +187,7 @@ try {
         }
     }
 
-    Write-Host "`n✨ Setup Complete! Please restart your terminal." -ForegroundColor Cyan
+    Write-Host "`n$([char]0x2728) Setup Complete! Please restart your terminal." -ForegroundColor Cyan
 }
 catch {
     Write-Error "Error occurred: $($_.Exception.Message)"
