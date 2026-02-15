@@ -8,9 +8,17 @@ $currentName = $env:COMPUTERNAME
 Write-Host "--- System Configuration ---" -ForegroundColor Cyan
 
 # 1. Tailscale Configuration (Automatic)
-if (Get-Command tailscale -ErrorAction SilentlyContinue) {
-    Write-Host "Found Tailscale. Checking status..." -ForegroundColor Cyan
-    $status = tailscale status 2>&1
+# Force refresh environment variables to find newly installed tailscale
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
+$tailscaleBin = Get-Command tailscale -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+if (-not $tailscaleBin -and (Test-Path "C:\Program Files\Tailscale\tailscale.exe")) {
+    $tailscaleBin = "C:\Program Files\Tailscale\tailscale.exe"
+}
+
+if ($tailscaleBin) {
+    Write-Host "Found Tailscale at: $tailscaleBin. Checking status..." -ForegroundColor Cyan
+    $status = & $tailscaleBin status 2>&1
     
     if ($status -match "Logged out" -or $status -match "Tailscale is stopped") {
         Write-Host "Tailscale is not logged in. Attempting auto-auth via Bitwarden..." -ForegroundColor Yellow
@@ -20,7 +28,7 @@ if (Get-Command tailscale -ErrorAction SilentlyContinue) {
                 if ($tsKey) {
                     Write-Host "Tailscale Auth Key retrieved. Authenticating as '$targetName'..." -ForegroundColor Cyan
                     # Use --force-reauth to ensure the key is used if already partially logged in
-                    & tailscale up --authkey $tsKey --hostname $targetName --accept-routes --force-reauth
+                    & $tailscaleBin up --authkey $tsKey --hostname $targetName --accept-routes --force-reauth
                     Write-Host "Tailscale Connected Successfully!" -ForegroundColor Green
                 }
             } catch {
@@ -31,7 +39,7 @@ if (Get-Command tailscale -ErrorAction SilentlyContinue) {
         }
     } else {
          Write-Host "Tailscale is already logged in. Updating hostname preference..." -ForegroundColor Green
-         tailscale set --hostname $targetName
+         & $tailscaleBin set --hostname $targetName
     }
 }
 

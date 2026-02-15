@@ -39,6 +39,9 @@ foreach ($package in $packages) {
     winget install --id $package -e --silent --accept-package-agreements --accept-source-agreements
 }
 
+# Force refresh environment variables for subsequent scripts
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
 # Ensure SSH Agent is running for "AddKeysToAgent" to work
 Write-Host "Configuring SSH Agent..." -ForegroundColor Gray
 try {
