@@ -28,7 +28,22 @@ function Install-Package {
     param([string]$id)
     Write-Host "Checking $id..." -ForegroundColor Gray
     
-    # Accurate check using exit code: 0 means found/installed
+    # Special Check for Tailscale (Common issue on Windows)
+    if ($id -eq "Tailscale.Tailscale") {
+        $commonTailscalePaths = @(
+            "$env:ProgramFiles\Tailscale\tailscale.exe",
+            "$env:ProgramFiles (x86)\Tailscale\tailscale.exe",
+            "C:\Program Files\Tailscale\tailscale.exe"
+        )
+        $isFound = $false
+        foreach ($path in $commonTailscalePaths) { if (Test-Path $path) { $isFound = $true; break } }
+        if ($isFound -or (Get-Service Tailscale -ErrorAction SilentlyContinue)) {
+            Write-Host "  [+] Tailscale is already present (Service/Path found)." -ForegroundColor Green
+            return
+        }
+    }
+
+    # Standard Winget check
     & winget list --id $id --source winget -e >$null 2>$null
     if ($LASTEXITCODE -eq 0) {
         Write-Host "  [+] $id is already present." -ForegroundColor Green
@@ -45,9 +60,16 @@ function Install-Package {
         return
     }
 
-    # Special Fallback for Tailscale if Winget fails (Common on some Windows builds)
+    # Special Fallback for Tailscale if Winget fails
     if ($id -eq "Tailscale.Tailscale") {
-        Write-Host "  [!] Winget failed for Tailscale. Attempting direct download fallback..." -ForegroundColor Yellow
+        Write-Host "  [!] Winget reported an error/abandoned. Tailscale might be running or Winget index is out of sync." -ForegroundColor Yellow
+        # One last check before downloading 100MB
+        if (Test-Path "C:\Program Files\Tailscale\tailscale.exe") {
+            Write-Host "  [v] Tailscale verified at C:\Program Files\Tailscale\tailscale.exe. Skipping download." -ForegroundColor Green
+            return
+        }
+
+        Write-Host "  [!] Attempting direct download fallback..." -ForegroundColor Yellow
         try {
             $url = "https://pkgs.tailscale.com/stable/tailscale-setup-full-latest.exe"
             $dest = "$env:TEMP\tailscale-setup.exe"
@@ -63,6 +85,7 @@ function Install-Package {
         Write-Warning "  [!] Failed to install $id. Error code: $LASTEXITCODE"
     }
 }
+
 
 
 
