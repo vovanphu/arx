@@ -81,16 +81,22 @@ if [ -z "${BW_SESSION:-}" ]; then
     echo ""
     echo "--- Bitwarden Setup ---"
     
-    # 1. Try to load password from environment or .env file
+    # 1. Try to load variables from environment or .env file
     PASSWORD="${BW_PASSWORD:-}"
     EMAIL="${BW_EMAIL:-}"
+    ROLE_VAR="${ROLE:-}"
+    HOSTNAME_VAR="${HOSTNAME:-}"
+    USER_NAME_VAR="${USER_NAME:-}"
+    EMAIL_ADDRESS_VAR="${EMAIL_ADDRESS:-}"
+
     if [ -f ".env" ]; then
-        if [ -z "$PASSWORD" ] || [ -z "$EMAIL" ]; then
-            echo "Found .env file. Parsing for secrets..."
-            # Extract values from .env safely
-            [ -z "$PASSWORD" ] && PASSWORD=$(grep "^BW_PASSWORD=" .env | head -n1 | cut -d'=' -f2- | xargs)
-            [ -z "$EMAIL" ] && EMAIL=$(grep "^BW_EMAIL=" .env | head -n1 | cut -d'=' -f2- | xargs)
-        fi
+        echo "Found .env file. Parsing for automation variables..."
+        [ -z "$PASSWORD" ] && PASSWORD=$(grep "^BW_PASSWORD=" .env | head -n1 | cut -d'=' -f2- | xargs)
+        [ -z "$EMAIL" ] && EMAIL=$(grep "^BW_EMAIL=" .env | head -n1 | cut -d'=' -f2- | xargs)
+        [ -z "$ROLE_VAR" ] && ROLE_VAR=$(grep "^ROLE=" .env | head -n1 | cut -d'=' -f2- | xargs)
+        [ -z "$HOSTNAME_VAR" ] && HOSTNAME_VAR=$(grep "^HOSTNAME=" .env | head -n1 | cut -d'=' -f2- | xargs)
+        [ -z "$USER_NAME_VAR" ] && USER_NAME_VAR=$(grep "^USER_NAME=" .env | head -n1 | cut -d'=' -f2- | xargs)
+        [ -z "$EMAIL_ADDRESS_VAR" ] && EMAIL_ADDRESS_VAR=$(grep "^EMAIL_ADDRESS=" .env | head -n1 | cut -d'=' -f2- | xargs)
     fi
 
     SHOULD_PROMPT=true
@@ -141,7 +147,7 @@ if [ -z "${BW_SESSION:-}" ]; then
             # Unlock and capture session
             echo ">>> STEP 2: Decrypt Vault (Unlock)"
             BW_SES=$(bw unlock --raw)
-            if [ $? -eq 0 ]; then
+            if [ $? -eq 0 ] ; then
                 export BW_SESSION="$BW_SES"
                 echo "Vault unlocked!"
                 echo "Syncing Bitwarden vault..."
@@ -158,8 +164,15 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 echo ""
 echo "--- Chezmoi Initialization ---"
 echo "Initializing and Applying Chezmoi with source: $SCRIPT_DIR"
-# Use --apply to ensure source is respected immediately
-"$CHEZMOI_BIN" init --apply --source "$SCRIPT_DIR" --force
+
+# Prepare init arguments
+INIT_ARGS=("init" "--apply" "--source" "$SCRIPT_DIR" "--force")
+[ -n "$ROLE_VAR" ] && INIT_ARGS+=("--data" "role=$ROLE_VAR")
+[ -n "$HOSTNAME_VAR" ] && INIT_ARGS+=("--data" "hostname=$HOSTNAME_VAR")
+[ -n "$USER_NAME_VAR" ] && INIT_ARGS+=("--data" "name=$USER_NAME_VAR")
+[ -n "$EMAIL_ADDRESS_VAR" ] && INIT_ARGS+=("--data" "email=$EMAIL_ADDRESS_VAR")
+
+"$CHEZMOI_BIN" "${INIT_ARGS[@]}"
 
 # Cleanup/Backup legacy default keys to avoid confusion
 if [ -f "$HOME/.ssh/id_ed25519" ]; then
@@ -174,3 +187,9 @@ if [ -f "$HOME/.ssh/id_ed25519_dotfiles" ]; then
 fi
 
 echo "Setup complete. Please reload your shell."
+
+# Clean up .env file for security
+if [ -f ".env" ]; then
+    echo "Cleaning up security credentials (.env)..."
+    rm .env
+fi

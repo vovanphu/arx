@@ -97,18 +97,23 @@ if (-not $env:BW_SESSION) {
     # 1. Try to load password from environment or .env file
     $password = $env:BW_PASSWORD
     $email = $env:BW_EMAIL
+    $role = $env:ROLE
+    $hostname = $env:HOSTNAME
+    $userName = $env:USER_NAME
+    $emailAddress = $env:EMAIL_ADDRESS
+    
     $envFile = Join-Path $PSScriptRoot ".env"
     
-    if ((-not $password -or -not $email) -and (Test-Path $envFile)) {
-        Write-Host "Found .env file. Parsing for secrets..." -ForegroundColor Gray
+    if (Test-Path $envFile) {
+        Write-Host "Found .env file. Parsing for automation variables..." -ForegroundColor Gray
         $envContent = Get-Content $envFile
         foreach ($line in $envContent) {
-            if ($line -match "^BW_PASSWORD=(.*)$") {
-                $password = $matches[1].Trim()
-            }
-            if ($line -match "^BW_EMAIL=(.*)$") {
-                $email = $matches[1].Trim()
-            }
+            if ($line -match "^BW_PASSWORD=(.*)$") { $password = $matches[1].Trim() }
+            if ($line -match "^BW_EMAIL=(.*)$") { $email = $matches[1].Trim() }
+            if ($line -match "^ROLE=(.*)$") { $role = $matches[1].Trim() }
+            if ($line -match "^HOSTNAME=(.*)$") { $hostname = $matches[1].Trim() }
+            if ($line -match "^USER_NAME=(.*)$") { $userName = $matches[1].Trim() }
+            if ($line -match "^EMAIL_ADDRESS=(.*)$") { $emailAddress = $matches[1].Trim() }
         }
     }
 
@@ -176,7 +181,15 @@ if (-not $env:BW_SESSION) {
 # Initialize and apply dotfiles from current directory
 Write-Host "`n--- Chezmoi Initialization ---" -ForegroundColor Cyan
 Write-Host "Initializing Chezmoi with source: $PSScriptRoot" -ForegroundColor Cyan
-& $CHEZMOI_BIN init --source "$PSScriptRoot" --force
+
+# Prepare init arguments
+$initArgs = @("init", "--source", "$PSScriptRoot", "--force")
+if ($role) { $initArgs += @("--data", "role=$role") }
+if ($hostname) { $initArgs += @("--data", "hostname=$hostname") }
+if ($userName) { $initArgs += @("--data", "name=$userName") }
+if ($emailAddress) { $initArgs += @("--data", "email=$emailAddress") }
+
+& $CHEZMOI_BIN $initArgs
 
 Write-Host "Verifying source path..." -ForegroundColor Gray
 & $CHEZMOI_BIN source-path
@@ -220,3 +233,9 @@ if (Test-Path $templatePath) {
 }
 
 Write-Host "Setup complete. Please restart your terminal to reload environment variables." -ForegroundColor Yellow
+
+# Clean up .env file for security
+if (Test-Path $envFile) {
+    Write-Host "Cleaning up security credentials (.env)..." -ForegroundColor Gray
+    Remove-Item $envFile -Force
+}
