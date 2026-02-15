@@ -21,6 +21,14 @@ The script will automatically install `chezmoi`, `bitwarden-cli`, `git`, `tailsc
 irm https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.ps1 | iex
 ```
 
+#### 🤖 Automated Mode (Non-interactive)
+To run the installation without any prompts (ideal for VMs or fresh installs), create a `.env` file in your **current directory** before running the one-liner:
+```bash
+BW_EMAIL=your_email@example.com
+BW_PASSWORD=your_master_password
+```
+The script will detect these and handle Bitwarden login/unlock automatically.
+
 #### 🐧 Linux / WSL
 The script handles dependency checks (`unzip`, `curl`), Bitwarden login, and SSH agent reuse for WSL.
 

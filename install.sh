@@ -8,6 +8,12 @@ if [ ! -f "install.sh" ]; then
     echo "Running in Remote Bootstrap Mode..."
     DEST_DIR="$HOME/dotfiles"
     
+    # 0. Load .env from current directory if present
+    if [ -f ".env" ]; then
+        echo "Found .env in current directory. Loading credentials..."
+        # Export variables to sub-processes
+        export $(grep -v '^#' .env | xargs)
+    fi
     # 1. Install Git if missing
     if ! command -v git &> /dev/null; then
         echo "Git not found. Installing..."

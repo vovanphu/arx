@@ -9,7 +9,16 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
 if (-not $PSScriptRoot) {
     Write-Host "Running in Remote Bootstrap Mode..." -ForegroundColor Cyan
     $DEST_DIR = "$HOME\dotfiles"
-    
+
+    # 0. Load .env from current directory if present (to pass secrets to local script)
+    if (Test-Path ".env") {
+        Write-Host "Found .env in current directory. Loading credentials..." -ForegroundColor Gray
+        $envContent = Get-Content ".env"
+        foreach ($line in $envContent) {
+            if ($line -match "^BW_PASSWORD=(.*)$") { $env:BW_PASSWORD = $matches[1].Trim() }
+            if ($line -match "^BW_EMAIL=(.*)$") { $env:BW_EMAIL = $matches[1].Trim() }
+        }
+    }
     # 1. Install Git if missing
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
         Write-Host "Git not found. Installing via Winget..." -ForegroundColor Yellow
