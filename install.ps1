@@ -63,31 +63,76 @@ if (-not (Get-Command bw -ErrorAction SilentlyContinue)) {
     winget install Bitwarden.CLI --accept-source-agreements --accept-package-agreements
 }
 
-# Smart Unlock: Help user provision secrets immediately
+# Smart Unlock: Help user provision secrets automatically or interactively
 if (-not $env:BW_SESSION) {
     Write-Host "`n--- Bitwarden Setup ---" -ForegroundColor Cyan
-    $response = Read-Host "Bitwarden session not detected. Unlock vault now to provision secrets? (y/n)"
-    if ($response -eq 'y') {
+    
+    # 1. Try to load password from environment or .env file
+    $password = $env:BW_PASSWORD
+    $envFile = Join-Path $PSScriptRoot ".env"
+    
+    if (-not $password -and (Test-Path $envFile)) {
+        Write-Host "Found .env file. Parsing for secrets..." -ForegroundColor Gray
+        $envContent = Get-Content $envFile
+        foreach ($line in $envContent) {
+            if ($line -match "^BW_PASSWORD=(.*)$") {
+                $password = $matches[1].Trim()
+                break
+            }
+        }
+    }
+
+    $shouldPrompt = $true
+    if ($password) {
+        Write-Host "BW_PASSWORD detected. Attempting automated unlock..." -ForegroundColor Yellow
         # Check status first
         $statusObj = bw status | ConvertFrom-Json
-        
         if ($statusObj.status -eq "unauthenticated") {
-            Write-Host "You are not logged in to Bitwarden." -ForegroundColor Yellow
-            Write-Host ">>> STEP 1: Authenticate Device (Login)" -ForegroundColor Cyan
-            bw login
-            Write-Host "Login successful." -ForegroundColor Green
+             Write-Host "Logging in via passwordenv..." -ForegroundColor Gray
+             $env:BW_PASSWORD = $password
+             bw login --passwordenv BW_PASSWORD
         }
         
-        # Unlock
-        Write-Host ">>> STEP 2: Decrypt Vault (Unlock)" -ForegroundColor Cyan
-        $output = bw unlock --raw
+        $env:BW_PASSWORD = $password
+        $output = bw unlock --passwordenv BW_PASSWORD --raw
         if ($LASTEXITCODE -eq 0 -and $output) {
             $env:BW_SESSION = $output
-            Write-Host "Vault unlocked for this session!" -ForegroundColor Green
+            Write-Host "Vault unlocked automatically!" -ForegroundColor Green
             Write-Host "Syncing Bitwarden vault..." -ForegroundColor Gray
             bw sync
+            $shouldPrompt = $false
         } else {
-            Write-Warning "Failed to unlock Bitwarden. Secrets will NOT be provisioned. Proceeding with basic installation..."
+            Write-Warning "Automated unlock failed. Falling back to interactive mode..."
+        }
+        # Clear sensitive env var after use
+        $env:BW_PASSWORD = $null
+    }
+
+    # 2. Fallback to interactive prompt if automated unlock skipped or failed
+    if ($shouldPrompt) {
+        $response = Read-Host "Bitwarden session not detected. Unlock vault now to provision secrets? (y/n)"
+        if ($response -eq 'y') {
+            # Check status first
+            $statusObj = bw status | ConvertFrom-Json
+            
+            if ($statusObj.status -eq "unauthenticated") {
+                Write-Host "You are not logged in to Bitwarden." -ForegroundColor Yellow
+                Write-Host ">>> STEP 1: Authenticate Device (Login)" -ForegroundColor Cyan
+                bw login
+                Write-Host "Login successful." -ForegroundColor Green
+            }
+            
+            # Unlock
+            Write-Host ">>> STEP 2: Decrypt Vault (Unlock)" -ForegroundColor Cyan
+            $output = bw unlock --raw
+            if ($LASTEXITCODE -eq 0 -and $output) {
+                $env:BW_SESSION = $output
+                Write-Host "Vault unlocked for this session!" -ForegroundColor Green
+                Write-Host "Syncing Bitwarden vault..." -ForegroundColor Gray
+                bw sync
+            } else {
+                Write-Warning "Failed to unlock Bitwarden. Secrets will NOT be provisioned. Proceeding with basic installation..."
+            }
         }
     }
 }

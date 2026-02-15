@@ -14,7 +14,7 @@ My personal dotfiles managed by [chezmoi](https://chezmoi.io).
 ### 2. Quick Start
 
 #### 🪟 Windows (PowerShell Administrator)
-The script will automatically install `chezmoi`, `bitwarden-cli`, `git`, configure `ssh-agent`, and provision your keys.
+The script will automatically install `chezmoi`, `bitwarden-cli`, `git`, `tailscale`, configure `ssh-agent`, and provision your keys.
 
 ```powershell
 # Run this valid one-liner in PowerShell Administrator:

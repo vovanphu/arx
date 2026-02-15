@@ -70,32 +70,69 @@ if ! command -v bw &> /dev/null; then
     fi
 fi
 
-# Smart Unlock: Help user provision secrets immediately
+# Smart Unlock: Help user provision secrets automatically or interactively
 if [ -z "${BW_SESSION:-}" ]; then
     echo ""
     echo "--- Bitwarden Setup ---"
-    read -p "Bitwarden session not detected. Unlock vault now to provision secrets? (y/n) " -r
-    echo
-    if [[ $REPLY =~ ^[Yy] ]]; then
+    
+    # 1. Try to load password from environment or .env file
+    PASSWORD="${BW_PASSWORD:-}"
+    if [ -z "$PASSWORD" ] && [ -f ".env" ]; then
+        echo "Found .env file. Parsing for secrets..."
+        # Extract BW_PASSWORD from .env
+        PASSWORD=$(grep "^BW_PASSWORD=" .env | cut -d'=' -f2- | xargs)
+    fi
+
+    SHOULD_PROMPT=true
+    if [ -n "$PASSWORD" ]; then
+        echo "BW_PASSWORD detected. Attempting automated unlock..."
         # Check login status
         if bw status | grep -q "unauthenticated"; then
-            echo "You are not logged in to Bitwarden."
-            echo ">>> STEP 1: Authenticate Device (Login)"
-            bw login
-            echo "Login successful."
+            echo "Logging in via passwordenv..."
+            export BW_PASSWORD="$PASSWORD"
+            bw login --passwordenv BW_PASSWORD
         fi
     
-        # Unlock and capture session
-        echo ">>> STEP 2: Decrypt Vault (Unlock)"
-        BW_SES=$(bw unlock --raw)
-        if [ $? -eq 0 ]; then
+        # Unlock and capture session using passwordenv
+        export BW_PASSWORD="$PASSWORD"
+        BW_SES=$(bw unlock --passwordenv BW_PASSWORD --raw)
+        if [ $? -eq 0 ] && [ -n "$BW_SES" ]; then
             export BW_SESSION="$BW_SES"
-            echo "Vault unlocked!"
+            echo "Vault unlocked automatically!"
             echo "Syncing Bitwarden vault..."
             bw sync
+            SHOULD_PROMPT=false
         else
-            echo "Warning: Failed to unlock vault. Secrets will not be provisioned. Proceeding..."
-            # Do not exit
+            echo "Warning: Automated unlock failed. Falling back to interactive mode..."
+        fi
+        # Clear sensitive env var
+        unset BW_PASSWORD
+    fi
+
+    # 2. Fallback to interactive prompt if automated unlock skipped or failed
+    if [ "$SHOULD_PROMPT" = true ]; then
+        read -p "Bitwarden session not detected. Unlock vault now to provision secrets? (y/n) " -r
+        echo
+        if [[ $REPLY =~ ^[Yy] ]]; then
+            # Check login status
+            if bw status | grep -q "unauthenticated"; then
+                echo "You are not logged in to Bitwarden."
+                echo ">>> STEP 1: Authenticate Device (Login)"
+                bw login
+                echo "Login successful."
+            fi
+        
+            # Unlock and capture session
+            echo ">>> STEP 2: Decrypt Vault (Unlock)"
+            BW_SES=$(bw unlock --raw)
+            if [ $? -eq 0 ]; then
+                export BW_SESSION="$BW_SES"
+                echo "Vault unlocked!"
+                echo "Syncing Bitwarden vault..."
+                bw sync
+            else
+                echo "Warning: Failed to unlock vault. Secrets will not be provisioned. Proceeding..."
+            fi
         fi
     fi
 fi
