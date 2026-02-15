@@ -29,15 +29,15 @@ function Install-Package {
     Write-Host "Checking $id..." -ForegroundColor Gray
     
     # Accurate check using exit code: 0 means found/installed
-    & winget list --id $id --source winget -e >$null 2>$null
+    & winget list --id $id -e >$null 2>$null
     if ($LASTEXITCODE -eq 0) {
         Write-Host "  [+] $id is already present." -ForegroundColor Green
         return
     }
 
     Write-Host "  [-] Installing $id..." -ForegroundColor Yellow
-    # Force use of --source winget to avoid potential MS Store certificate issues
-    & winget install --id $id --source winget -e --accept-package-agreements --accept-source-agreements --silent
+    # Allow all sources to be searched
+    & winget install --id $id -e --accept-package-agreements --accept-source-agreements --silent
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "  [v] Successfully installed $id." -ForegroundColor Green
@@ -45,6 +45,7 @@ function Install-Package {
         Write-Warning "  [!] Failed to install $id. Error code: $LASTEXITCODE"
     }
 }
+
 
 foreach ($package in $packages) {
     if ($package) {
