@@ -186,10 +186,11 @@ if (-not $env:BW_SESSION) {
             
             # Unlock
             Write-Host ">>> STEP 2: Decrypt Vault (Unlock)" -ForegroundColor Cyan
-            $output = bw unlock --raw
-            if ($LASTEXITCODE -eq 0 -and $output) {
-                $env:BW_SESSION = $output
-                Write-Host "Vault unlocked for this session!" -ForegroundColor Green
+            $output = (bw unlock --raw | Out-String).Trim() -split "`n" | Select-Object -Last 1
+            
+            if ($output -match '^[A-Za-z0-9+/=]{20,}$') {
+                $env:BW_SESSION = $output.Trim()
+                Write-Host "Vault unlocked!" -ForegroundColor Green
                 Write-Host "Syncing Bitwarden vault..." -ForegroundColor Gray
                 bw sync
             } else {
