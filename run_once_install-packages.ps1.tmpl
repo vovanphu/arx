@@ -7,27 +7,22 @@ Write-Host "Starting Windows Package Installation via Winget..." -ForegroundColo
 {{- $pkgData := include "packages.yaml" | fromYaml -}}
 {{- $winData := $pkgData.windows -}}
 
-$packages = @()
+$packages = @(
 {{ range $winData.common }}
-$packages += "{{ . }}"
+    "{{ . }}",
+{{ end }}
+{{ if or (eq .role "centaur") (eq .role "chimera") (eq .role "griffin") }}
+{{ range $winData.extras }}
+    "{{ . }}",
+{{ end }}
 {{- end }}
-
-# Only install 'extras' on Interactive roles:
-if ("{{ .role }}" -eq "centaur" -or "{{ .role }}" -eq "chimera" -or "{{ .role }}" -eq "griffin") {
-    {{ range $winData.extras }}
-    $packages += "{{ . }}"
-    {{- end }}
-}
-
-# Role-specific packages
-{{ if hasKey $winData.roles .role -}}
-    {{- $rolePkgs := index $winData.roles .role -}}
-    {{- if $rolePkgs -}}
-        {{- range $rolePkgs }}
-        $packages += "{{ . }}"
-        {{- end }}
-    {{- end }}
+{{ if hasKey $winData.roles .role }}
+  {{- range index $winData.roles .role }}
+    "{{ . }}",
+  {{- end }}
 {{- end }}
+    $null
+) | Where-Object { $_ -ne $null }
 
 function Install-Package {
     param([string]$id)
@@ -69,6 +64,7 @@ Set-Service -Name ssh-agent -StartupType Automatic -ErrorAction SilentlyContinue
 Start-Service ssh-agent -ErrorAction SilentlyContinue
 
 {{- end -}}
+
 
 
 
