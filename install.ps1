@@ -154,11 +154,12 @@ if (-not $env:BW_SESSION) {
         }
         
         $env:BW_PASSWORD = $password
-        # Select last line in case of CLI chatter
-        $output = bw unlock --passwordenv BW_PASSWORD --raw | Select-Object -Last 1
-        if ($LASTEXITCODE -eq 0 -and $output) {
-            $env:BW_SESSION = $output
-            Write-Host "Vault unlocked automatically!" -ForegroundColor Green
+        # FIX: Capture output as string and take last line to remove CLI chatter
+        $output = (bw unlock --passwordenv BW_PASSWORD --raw | Out-String).Trim() -split "`n" | Select-Object -Last 1
+        
+        # Regex check: Ensure we captured a valid Base64 session key, not instructions
+        if ($LASTEXITCODE -eq 0 -and $output -match '^[A-Za-z0-9+/=]{20,}$') {
+            $env:BW_SESSION = $output.Trim()
             Write-Host "Syncing Bitwarden vault..." -ForegroundColor Gray
             bw sync
             $shouldPrompt = $false
@@ -198,33 +199,30 @@ if (-not $env:BW_SESSION) {
     }
 }
 
-# --- Chezmoi Initialization (Fixed) ---
+# --- Chezmoi Initialization (Definitive Fix) ---
 Write-Host "`n--- Chezmoi Initialization ---" -ForegroundColor Cyan
 
-# Use a single splattable array for all arguments (safest for PS 5.1)
-$chezmoiArgs = @("init", "--force")
-if ($role) { $chezmoiArgs += "--data"; $chezmoiArgs += "role=$role" }
-if ($hostname) { $chezmoiArgs += "--data"; $chezmoiArgs += "hostname=$hostname" }
-if ($userName) { $chezmoiArgs += "--data"; $chezmoiArgs += "name=$userName" }
-if ($emailAddress) { $chezmoiArgs += "--data"; $chezmoiArgs += "email=$emailAddress" }
+# Use --flag=value syntax to ensure PowerShell 5.1 passes arguments correctly to Go binary
+$chezmoiArgs = @("init", "--force", "--source=$PSScriptRoot")
+if ($role) { $chezmoiArgs += "--data=role=$role" }
+if ($hostname) { $chezmoiArgs += "--data=hostname=$hostname" }
+if ($userName) { $chezmoiArgs += "--data=name=$userName" }
+if ($emailAddress) { $chezmoiArgs += "--data=email=$emailAddress" }
 
-# Add source as the final positional argument
-$chezmoiArgs += "$PSScriptRoot"
-
-Write-Host "Running: chezmoi $($chezmoiArgs -join ' ')" -ForegroundColor Gray
+Write-Host "Executing: chezmoi $($chezmoiArgs -join ' ')" -ForegroundColor Gray
 & $CHEZMOI_BIN @chezmoiArgs
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Chezmoi init failed."
+    Write-Error "Chezmoi init failed. Try manual: chezmoi init --source=$PSScriptRoot"
     exit 1
 }
 
 Write-Host "Verifying source path..." -ForegroundColor Gray
-& $CHEZMOI_BIN source-path
+& $CHEZMOI_BIN --source="$PSScriptRoot" source-path
 
 Write-Host "Applying dotfiles..." -ForegroundColor Green
-# Add --source insurance to ensured apply finds the repo even if config init was shaky
-& $CHEZMOI_BIN apply --source "$PSScriptRoot" --force
+# Add --source insurance to ensure apply finds the repo even if config init was shaky
+& $CHEZMOI_BIN apply --source="$PSScriptRoot" --force
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to apply dotfiles. Please check the logs above."

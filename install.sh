@@ -171,16 +171,16 @@ echo "--- Chezmoi Initialization ---"
 echo "Initializing and Applying Chezmoi with source: $SCRIPT_DIR"
 
 # Prepare init arguments
-INIT_ARGS=("init" "--apply" "--source" "$SCRIPT_DIR" "--force")
-[ -n "$ROLE_VAR" ] && INIT_ARGS+=("--data" "role=$ROLE_VAR")
-[ -n "$HOSTNAME_VAR" ] && INIT_ARGS+=("--data" "hostname=$HOSTNAME_VAR")
-[ -n "$USER_NAME_VAR" ] && INIT_ARGS+=("--data" "name=$USER_NAME_VAR")
-[ -n "$EMAIL_ADDRESS_VAR" ] && INIT_ARGS+=("--data" "email=$EMAIL_ADDRESS_VAR")
+INIT_ARGS=("init" "--apply" "--source=$SCRIPT_DIR" "--force")
+[ -n "$ROLE_VAR" ] && INIT_ARGS+=("--data=role=$ROLE_VAR")
+[ -n "$HOSTNAME_VAR" ] && INIT_ARGS+=("--data=hostname=$HOSTNAME_VAR")
+[ -n "$USER_NAME_VAR" ] && INIT_ARGS+=("--data=name=$USER_NAME_VAR")
+[ -n "$EMAIL_ADDRESS_VAR" ] && INIT_ARGS+=("--data=email=$EMAIL_ADDRESS_VAR")
 
 "$CHEZMOI_BIN" "${INIT_ARGS[@]}"
 
 # Extra apply with explicit source for robustness (insurance)
-"$CHEZMOI_BIN" apply --source "$SCRIPT_DIR" --force
+"$CHEZMOI_BIN" apply --source="$SCRIPT_DIR" --force
 
 # Cleanup/Backup legacy default keys to avoid confusion
 if [ -f "$HOME/.ssh/id_ed25519" ]; then
