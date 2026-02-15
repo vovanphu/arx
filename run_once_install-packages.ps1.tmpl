@@ -33,10 +33,30 @@ if ($winData.roles.PSObject.Properties.Name -contains "{{ .role }}") {
 # Bitwarden CLI (Already in common, but keeping comment for clarity)
 # $packages += "Bitwarden.CLI" 
 
+# Function to install packages robustly
+function Install-Package {
+    param([string]$id)
+    Write-Host "Checking/Installing $id..." -ForegroundColor Gray
+    
+    # Avoid MS Store certificate errors by forcing 'winget' source
+    $check = winget list --id $id --source winget -e 2>$null
+    if ($check) {
+        Write-Host "  [+] $id is already installed." -ForegroundColor Green
+        return
+    }
+
+    # Install with definitive survival flags
+    winget install --id $id --source winget -e --accept-package-agreements --accept-source-agreements --silent
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  [✓] $id installed successfully!" -ForegroundColor Green
+    } else {
+        Write-Warning "  [!] Failed to install $id. Error code: $LASTEXITCODE"
+    }
+}
+
 # Install packages
 foreach ($package in $packages) {
-    Write-Host "Checking/Installing $package..." -ForegroundColor Gray
-    winget install --id $package -e --silent --accept-package-agreements --accept-source-agreements
+    Install-Package -id $package
 }
 
 # Force refresh environment variables for subsequent scripts
