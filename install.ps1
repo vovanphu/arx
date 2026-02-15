@@ -15,8 +15,12 @@ if (-not $PSScriptRoot) {
         Write-Host "Found .env in current directory. Loading credentials..." -ForegroundColor Gray
         $envContent = Get-Content ".env"
         foreach ($line in $envContent) {
-            if ($line -match "^BW_PASSWORD=(.*)$") { $env:BW_PASSWORD = $matches[1].Trim() }
-            if ($line -match "^BW_EMAIL=(.*)$") { $env:BW_EMAIL = $matches[1].Trim() }
+            if ($line -match "^BW_PASSWORD=(.*)$") { $env:BW_PASSWORD = $matches[1].Trim(" `"'") }
+            if ($line -match "^BW_EMAIL=(.*)$") { $env:BW_EMAIL = $matches[1].Trim(" `"'") }
+            if ($line -match "^ROLE=(.*)$") { $env:ROLE = $matches[1].Trim(" `"'") }
+            if ($line -match "^HOSTNAME=(.*)$") { $env:HOSTNAME = $matches[1].Trim(" `"'") }
+            if ($line -match "^USER_NAME=(.*)$") { $env:USER_NAME = $matches[1].Trim(" `"'") }
+            if ($line -match "^EMAIL_ADDRESS=(.*)$") { $env:EMAIL_ADDRESS = $matches[1].Trim(" `"'") }
         }
     }
     # 1. Install Git if missing
@@ -182,14 +186,14 @@ if (-not $env:BW_SESSION) {
 Write-Host "`n--- Chezmoi Initialization ---" -ForegroundColor Cyan
 Write-Host "Initializing Chezmoi with source: $PSScriptRoot" -ForegroundColor Cyan
 
-# Prepare init arguments
-$initArgs = @("--source", "$PSScriptRoot", "--force")
+# Prepare init arguments - Subcommand MUST be in the array for robust splatting
+$initArgs = @("init", "--source", "$PSScriptRoot", "--force")
 if ($role) { $initArgs += @("--data", "role=$role") }
 if ($hostname) { $initArgs += @("--data", "hostname=$hostname") }
 if ($userName) { $initArgs += @("--data", "name=$userName") }
 if ($emailAddress) { $initArgs += @("--data", "email=$emailAddress") }
 
-& $CHEZMOI_BIN init $initArgs
+& $CHEZMOI_BIN @initArgs
 
 Write-Host "Verifying source path..." -ForegroundColor Gray
 & $CHEZMOI_BIN source-path
