@@ -137,17 +137,14 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # --- Chezmoi Initialization (The "Invisible" Version) ---
 echo "--- Chezmoi Initialization ---"
-echo "Initializing Chezmoi with environment variables..."
 
-# Ensure .env is deleted on exit (secure cleanup)
-trap 'rm -f .env' EXIT
-
-# Export environment variables for the template to read directly
+# Export environment variables for the template to read directly (Short-Circuit Logic)
 export ROLE="$ROLE_VAR"
 export HOSTNAME="$HOSTNAME_VAR"
 export USER_NAME="$USER_NAME_VAR"
 export EMAIL_ADDRESS="$EMAIL_ADDRESS_VAR"
 
+echo "Initializing Chezmoi with environment variables..."
 "$CHEZMOI_BIN" init --force --source="$SCRIPT_DIR"
 if [ $? -ne 0 ]; then echo "Error: Chezmoi init failed."; exit 1; fi
 

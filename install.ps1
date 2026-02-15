@@ -143,13 +143,20 @@ try {
     # --- Chezmoi Initialization (The "Invisible" Version) ---
     Write-Host "`n--- Chezmoi Initialization ---" -ForegroundColor Cyan
     
-    # Set environment variables for the template to read directly
+    # Ép biến môi trường vào session hiện tại (Template sẽ bốc từ đây)
     $env:ROLE = $role
     $env:HOSTNAME = $hostname
     $env:USER_NAME = $userName
     $env:EMAIL_ADDRESS = $emailAddress
 
-    Write-Host "Initializing chezmoi with environment variables..." -ForegroundColor Gray
+    # In ra để debug (Chắc chắn các biến quan trọng đã được nạp)
+    Write-Host "Baking environment variables into template context:" -ForegroundColor Gray
+    Write-Host "  > EMAIL: $env:EMAIL_ADDRESS"
+    Write-Host "  > ROLE : $env:ROLE"
+    Write-Host "  > HOST : $env:HOSTNAME"
+
+    Write-Host "`nInitializing chezmoi..." -ForegroundColor Gray
+    # Không cần pipe Enter nữa vì template giờ đã có guard if/else cứng
     & $CHEZMOI_BIN init --force --source="$PSScriptRoot"
     if ($LASTEXITCODE -ne 0) { throw "Chezmoi init failed. Check for template errors." }
 
