@@ -2,6 +2,9 @@
 # Usage: powershell -ExecutionPolicy Bypass -File install.ps1
 #        OR: irm https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.ps1 | iex
 
+# Ensure scripts can run for this and future sessions
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+
 # --- Remote Bootstrap Logic ---
 if (-not $PSScriptRoot) {
     Write-Host "Running in Remote Bootstrap Mode..." -ForegroundColor Cyan
@@ -69,15 +72,18 @@ if (-not $env:BW_SESSION) {
     
     # 1. Try to load password from environment or .env file
     $password = $env:BW_PASSWORD
+    $email = $env:BW_EMAIL
     $envFile = Join-Path $PSScriptRoot ".env"
     
-    if (-not $password -and (Test-Path $envFile)) {
+    if ((-not $password -or -not $email) -and (Test-Path $envFile)) {
         Write-Host "Found .env file. Parsing for secrets..." -ForegroundColor Gray
         $envContent = Get-Content $envFile
         foreach ($line in $envContent) {
             if ($line -match "^BW_PASSWORD=(.*)$") {
                 $password = $matches[1].Trim()
-                break
+            }
+            if ($line -match "^BW_EMAIL=(.*)$") {
+                $email = $matches[1].Trim()
             }
         }
     }
@@ -88,9 +94,15 @@ if (-not $env:BW_SESSION) {
         # Check status first
         $statusObj = bw status | ConvertFrom-Json
         if ($statusObj.status -eq "unauthenticated") {
-             Write-Host "Logging in via passwordenv..." -ForegroundColor Gray
-             $env:BW_PASSWORD = $password
-             bw login --passwordenv BW_PASSWORD
+             if ($email) {
+                 Write-Host "Logging in via email and passwordenv..." -ForegroundColor Gray
+                 $env:BW_PASSWORD = $password
+                 bw login $email --passwordenv BW_PASSWORD
+             } else {
+                 Write-Host "Logging in via passwordenv..." -ForegroundColor Gray
+                 $env:BW_PASSWORD = $password
+                 bw login --passwordenv BW_PASSWORD
+             }
         }
         
         $env:BW_PASSWORD = $password

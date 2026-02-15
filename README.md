@@ -66,4 +66,8 @@ The system remembers your choices in `~/.config/chezmoi/chezmoi.toml`. To force 
 *   **Linux**: `rm ~/.config/chezmoi/chezmoi.toml`
 *   **Windows**: `Remove-Item $env:USERPROFILE\.config\chezmoi\chezmoi.toml`
 
+### SSH Guest/VM Setup
+Nếu bạn cần cấu hình SSH cho máy ảo Windows hoặc máy đích mới, hãy xem hướng dẫn tại:
+*   [**Cài đặt OpenSSH Server trên Windows**](docs/ssh-windows-setup.md)
+
 Then run the install script again.

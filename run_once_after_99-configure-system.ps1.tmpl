@@ -19,7 +19,8 @@ if (Get-Command tailscale -ErrorAction SilentlyContinue) {
                 $tsKey = bw get password "tailscale-auth-key"
                 if ($tsKey) {
                     Write-Host "Tailscale Auth Key retrieved. Authenticating as '$targetName'..." -ForegroundColor Cyan
-                    tailscale up --authkey $tsKey --hostname $targetName --accept-routes
+                    # Use --force-reauth to ensure the key is used if already partially logged in
+                    & tailscale up --authkey $tsKey --hostname $targetName --accept-routes --force-reauth
                     Write-Host "Tailscale Connected Successfully!" -ForegroundColor Green
                 }
             } catch {

@@ -77,10 +77,14 @@ if [ -z "${BW_SESSION:-}" ]; then
     
     # 1. Try to load password from environment or .env file
     PASSWORD="${BW_PASSWORD:-}"
-    if [ -z "$PASSWORD" ] && [ -f ".env" ]; then
-        echo "Found .env file. Parsing for secrets..."
-        # Extract BW_PASSWORD from .env
-        PASSWORD=$(grep "^BW_PASSWORD=" .env | cut -d'=' -f2- | xargs)
+    EMAIL="${BW_EMAIL:-}"
+    if [ -f ".env" ]; then
+        if [ -z "$PASSWORD" ] || [ -z "$EMAIL" ]; then
+            echo "Found .env file. Parsing for secrets..."
+            # Extract values from .env safely
+            [ -z "$PASSWORD" ] && PASSWORD=$(grep "^BW_PASSWORD=" .env | head -n1 | cut -d'=' -f2- | xargs)
+            [ -z "$EMAIL" ] && EMAIL=$(grep "^BW_EMAIL=" .env | head -n1 | cut -d'=' -f2- | xargs)
+        fi
     fi
 
     SHOULD_PROMPT=true
@@ -88,9 +92,15 @@ if [ -z "${BW_SESSION:-}" ]; then
         echo "BW_PASSWORD detected. Attempting automated unlock..."
         # Check login status
         if bw status | grep -q "unauthenticated"; then
-            echo "Logging in via passwordenv..."
-            export BW_PASSWORD="$PASSWORD"
-            bw login --passwordenv BW_PASSWORD
+            if [ -n "$EMAIL" ]; then
+                echo "Logging in as $EMAIL via passwordenv..."
+                export BW_PASSWORD="$PASSWORD"
+                bw login "$EMAIL" --passwordenv BW_PASSWORD
+            else
+                echo "Logging in via passwordenv..."
+                export BW_PASSWORD="$PASSWORD"
+                bw login --passwordenv BW_PASSWORD
+            fi
         fi
     
         # Unlock and capture session using passwordenv
