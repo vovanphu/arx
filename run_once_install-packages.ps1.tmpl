@@ -1,11 +1,11 @@
-{{- if eq .chezmoi.os "windows" -}}
+{{ if eq .chezmoi.os "windows" }}
 # run_once_install-packages.ps1.tmpl
 # This script runs only when the hash of this file changes.
 
 Write-Host "Starting Windows Package Installation via Winget..." -ForegroundColor Cyan
 
-{{- $pkgData := include "packages.yaml" | fromYaml -}}
-{{- $winData := $pkgData.windows -}}
+{{ $pkgData := include "packages.yaml" | fromYaml }}
+{{ $winData := $pkgData.windows }}
 
 $packages = @(
 {{ range $winData.common }}
@@ -15,12 +15,12 @@ $packages = @(
 {{ range $winData.extras }}
     "{{ . }}",
 {{ end }}
-{{- end }}
+{{ end }}
 {{ if hasKey $winData.roles .role }}
-  {{- range index $winData.roles .role }}
+  {{ range index $winData.roles .role }}
     "{{ . }}",
-  {{- end }}
-{{- end }}
+  {{ end }}
+{{ end }}
     $null
 ) | Where-Object { $_ -ne $null }
 
@@ -63,7 +63,8 @@ Write-Host "Configure SSH Agent..." -ForegroundColor Cyan
 Set-Service -Name ssh-agent -StartupType Automatic -ErrorAction SilentlyContinue
 Start-Service ssh-agent -ErrorAction SilentlyContinue
 
-{{- end -}}
+{{ end }}
+
 
 
 
