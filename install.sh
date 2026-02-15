@@ -91,12 +91,12 @@ if [ -z "${BW_SESSION:-}" ]; then
 
     if [ -f ".env" ]; then
         echo "Found .env file. Parsing for automation variables..."
-        [ -z "$PASSWORD" ] && PASSWORD=$(grep "^BW_PASSWORD=" .env | head -n1 | cut -d'=' -f2- | xargs)
-        [ -z "$EMAIL" ] && EMAIL=$(grep "^BW_EMAIL=" .env | head -n1 | cut -d'=' -f2- | xargs)
-        [ -z "$ROLE_VAR" ] && ROLE_VAR=$(grep "^ROLE=" .env | head -n1 | cut -d'=' -f2- | xargs)
-        [ -z "$HOSTNAME_VAR" ] && HOSTNAME_VAR=$(grep "^HOSTNAME=" .env | head -n1 | cut -d'=' -f2- | xargs)
-        [ -z "$USER_NAME_VAR" ] && USER_NAME_VAR=$(grep "^USER_NAME=" .env | head -n1 | cut -d'=' -f2- | xargs)
-        [ -z "$EMAIL_ADDRESS_VAR" ] && EMAIL_ADDRESS_VAR=$(grep "^EMAIL_ADDRESS=" .env | head -n1 | cut -d'=' -f2- | xargs)
+        [z "$PASSWORD" ] && PASSWORD=$(grep "^BW_PASSWORD=" .env | head -n1 | cut -d'=' -f2- | sed -e "s/^['\"]//; s/['\"]$//")
+        [ -z "$EMAIL" ] && EMAIL=$(grep "^BW_EMAIL=" .env | head -n1 | cut -d'=' -f2- | sed -e "s/^['\"]//; s/['\"]$//")
+        [ -z "$ROLE_VAR" ] && ROLE_VAR=$(grep "^ROLE=" .env | head -n1 | cut -d'=' -f2- | sed -e "s/^['\"]//; s/['\"]$//")
+        [ -z "$HOSTNAME_VAR" ] && HOSTNAME_VAR=$(grep "^HOSTNAME=" .env | head -n1 | cut -d'=' -f2- | sed -e "s/^['\"]//; s/['\"]$//")
+        [ -z "$USER_NAME_VAR" ] && USER_NAME_VAR=$(grep "^USER_NAME=" .env | head -n1 | cut -d'=' -f2- | sed -e "s/^['\"]//; s/['\"]$//")
+        [ -z "$EMAIL_ADDRESS_VAR" ] && EMAIL_ADDRESS_VAR=$(grep "^EMAIL_ADDRESS=" .env | head -n1 | cut -d'=' -f2- | sed -e "s/^['\"]//; s/['\"]$//")
     fi
 
     SHOULD_PROMPT=true
