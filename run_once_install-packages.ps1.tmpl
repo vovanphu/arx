@@ -1,7 +1,6 @@
 {{- if eq .chezmoi.os "windows" -}}
 # run_once_install-packages.ps1.tmpl
 # This script runs only when the hash of this file changes.
-# Version: 1.1 (Force Run for Agent Setup)
 
 $pkgData = '{{ include "packages.yaml" | fromYaml | toJson }}' | ConvertFrom-Json
 $winData = $pkgData.windows
@@ -9,20 +8,10 @@ $winData = $pkgData.windows
 Write-Host "Starting Windows Package Installation via Winget..." -ForegroundColor Cyan
 
 $packages = @()
-
-# Common Packages
 $packages += $winData.common
-
-# Core Tools (Excluded from minimal 'server' role)
-# Core Tools (Excluded from headless 'server' roles)
-# Headless Roles: cyclops, hydra, kraken, cerberus, golem, minion, siren
 if ("{{ .role }}" -eq "centaur" -or "{{ .role }}" -eq "chimera" -or "{{ .role }}" -eq "griffin") {
     $packages += $winData.extras
-    
-    # Fonts are in 'extras' list in yaml, processed normally by loop now
 }
-
-# Role-specific packages
 if ($winData.roles.PSObject.Properties.Name -contains "{{ .role }}") {
     $rolePackages = $winData.roles."{{ .role }}"
     if ($rolePackages) {
@@ -30,47 +19,41 @@ if ($winData.roles.PSObject.Properties.Name -contains "{{ .role }}") {
     }
 }
 
-# Bitwarden CLI (Already in common, but keeping comment for clarity)
-# $packages += "Bitwarden.CLI" 
-
-# Function to install packages robustly
 function Install-Package {
     param([string]$id)
-    Write-Host "Checking/Installing $id..." -ForegroundColor Gray
+    Write-Host "Checking $id..." -ForegroundColor Gray
     
-    # Avoid MS Store certificate errors by forcing 'winget' source
+    # Kiểm tra xem app đã cài chưa (né lỗi cài đè)
     $check = winget list --id $id --source winget -e 2>$null
     if ($check) {
-        Write-Host "  [+] $id is already installed." -ForegroundColor Green
+        Write-Host "  [+] $id is already present." -ForegroundColor Green
         return
     }
 
-    # Install with definitive survival flags
+    Write-Host "  [-] Installing $id..." -ForegroundColor Yellow
+    # Ép dùng --source winget để né lỗi chứng chỉ MS Store
     winget install --id $id --source winget -e --accept-package-agreements --accept-source-agreements --silent
+    
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "  [✓] $id installed successfully!" -ForegroundColor Green
+        Write-Host "  [✓] Successfully installed $id." -ForegroundColor Green
     } else {
         Write-Warning "  [!] Failed to install $id. Error code: $LASTEXITCODE"
     }
 }
 
-# Install packages
 foreach ($package in $packages) {
     Install-Package -id $package
 }
 
-# Force refresh environment variables for subsequent scripts
-$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-
-# Ensure SSH Agent is running for "AddKeysToAgent" to work
-Write-Host "Configuring SSH Agent..." -ForegroundColor Gray
-try {
-    Set-Service -Name ssh-agent -StartupType Automatic -ErrorAction Stop
-    Start-Service ssh-agent -ErrorAction Stop
-} catch {
-    Write-Host "Warning: Could not authenticate SSH Agent service (Requires Admin)." -ForegroundColor Yellow
-    Write-Host "    You may need to run 'Set-Service ssh-agent -StartupType Automatic' as Administrator manually." -ForegroundColor Gray
-}
+# Refresh PATH chuẩn chỉnh
+Write-Host "Refreshing Environment PATH..." -ForegroundColor Gray
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
 
 Write-Host "Windows Package Installation Complete!" -ForegroundColor Green
+
+# Cấu hình SSH Agent
+Write-Host "Configuring SSH Agent..." -ForegroundColor Cyan
+Set-Service -Name ssh-agent -StartupType Automatic -ErrorAction SilentlyContinue
+Start-Service ssh-agent -ErrorAction SilentlyContinue
+
 {{- end -}}
