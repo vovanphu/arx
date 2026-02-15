@@ -36,15 +36,34 @@ function Install-Package {
     }
 
     Write-Host "  [-] Installing $id..." -ForegroundColor Yellow
-    # Force use of --source winget to avoid potential MS Store certificate issues
-    & winget install --id $id --source winget -e --accept-package-agreements --accept-source-agreements --silent
+    
+    # Try Winget first
+    & winget install --id $id --source winget -e --accept-package-agreements --accept-source-agreements --silent --no-upgrade
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "  [v] Successfully installed $id." -ForegroundColor Green
+        return
+    }
+
+    # Special Fallback for Tailscale if Winget fails (Common on some Windows builds)
+    if ($id -eq "Tailscale.Tailscale") {
+        Write-Host "  [!] Winget failed for Tailscale. Attempting direct download fallback..." -ForegroundColor Yellow
+        try {
+            $url = "https://pkgs.tailscale.com/stable/tailscale-setup-full-latest.exe"
+            $dest = "$env:TEMP\tailscale-setup.exe"
+            Write-Host "  [>] Downloading from $url..." -ForegroundColor Gray
+            Invoke-WebRequest -Uri $url -OutFile $dest -ErrorAction Stop
+            Write-Host "  [>] Running installer..." -ForegroundColor Gray
+            Start-Process -FilePath $dest -ArgumentList "/quiet", "/norestart" -Wait -ErrorAction Stop
+            Write-Host "  [v] Successfully installed Tailscale via direct installer." -ForegroundColor Green
+        } catch {
+            Write-Warning "  [!] Fallback installation failed: $($_.Exception.Message)"
+        }
     } else {
         Write-Warning "  [!] Failed to install $id. Error code: $LASTEXITCODE"
     }
 }
+
 
 
 
