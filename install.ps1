@@ -116,7 +116,7 @@ if (-not $env:BW_SESSION) {
     
     if (Test-Path $envFile) {
         Write-Host "Found .env file. Parsing for automation variables..." -ForegroundColor Gray
-        $envContent = Get-Get-Content $envFile
+        $envContent = Get-Content $envFile
         foreach ($line in $envContent) {
             $cleanLine = $line.Split('#')[0].Trim()
             if ($cleanLine -match '^([^=]+)=(.*)$') {
