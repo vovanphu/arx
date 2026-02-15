@@ -1,64 +1,65 @@
-# Hướng dẫn cài đặt OpenSSH Server trên Windows
+# Guide: Installing OpenSSH Server on Windows
 
-Tài liệu này hướng dẫn cách kích hoạt và cấu hình SSH Server trên Windows (bao gồm cả máy ảo Hyper-V) để có thể quản lý từ xa.
+This document guides you through enabling and configuring SSH Server on Windows (including Hyper-V VMs) for remote management.
 
-## 1. Cài đặt OpenSSH Server
+## 1. Install OpenSSH Server
 
-Chạy PowerShell với quyền **Administrator** và thực thi lệnh sau:
+Run PowerShell as **Administrator** and execute the following commands:
 
 ```powershell
-# Cách A: Dùng Windows Capability (Tiêu chuẩn cho Win 10/11 Pro)
+# Option A: Using Windows Capability (Standard for Win 10/11 Pro)
 Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
 
-# Cách B: Dùng Winget (Khuyên dùng cho bản Windows 11 Eval hoặc khi Cách A lỗi)
+# Option B: Using Winget (Recommended for Windows 11 Eval or if Option A fails)
 winget install "Microsoft.OpenSSH.Preview"
 ```
 
-## 2. Cấu hình Dịch vụ (Service)
+## 2. Configure Service
 
-Kích hoạt dịch vụ và thiết lập tự động khởi chạy cùng Windows:
+Enable the service and set it to start automatically with Windows:
 
 ```powershell
-# Khởi động dịch vụ SSHD
+# Start the SSHD service
 Start-Service sshd
 
-# Thiết lập tự động khởi chạy (Automatic)
+# Set to start automatically
 Set-Service -Name sshd -StartupType 'Automatic'
 
-# Kiểm tra trạng thái dịch vụ (Phải là 'Running')
+# Verify service status (should be 'Running')
 Get-Service sshd
 ```
 
-## 3. Cấu hình Tường lửa & Mạng (Firewall)
+## 3. Configure Firewall & Network
 
-Để đảm bảo có thể kết nối từ bên ngoài (như máy Host), bạn cần mở cổng 22 và chuyển loại mạng về Private:
+To ensure you can connect from outside (e.g., from the Host machine), you need to open port 22 and set the network category to Private:
 
 ```powershell
-# 1. Mở cổng 22 cho SSH trên mọi Profile mạng
+# 1. Open port 22 for SSH on all network profiles
 New-NetFirewallRule -Name "SSH-In" -DisplayName "Allow SSH Inbound" -Enabled True -Direction Inbound -Protocol TCP -LocalPort 22 -Action Allow
 
-# 2. Chuyển cấu hình mạng sang Private (Dành cho Win 11 Eval - Giảm bớt chặn mặc định)
+# 2. Set network profile to Private (Specifically for Win 11 Eval to reduce default blocks)
 Set-NetConnectionProfile -InterfaceAlias "*" -NetworkCategory Private
 ```
 
-## 4. Cấu hình Shell mặc định (Tùy chọn)
+## 4. Configure Default Shell (Optional)
 
-Nếu bạn muốn khi SSH vào sẽ sử dụng PowerShell thay vì CMD:
+If you want to use PowerShell instead of CMD when connecting via SSH:
 
 ```powershell
 New-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" -Name DefaultShell -Value "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -PropertyType String -Force
 ```
 
-## 5. Kết nối thử nghiệm
+## 5. Test Connection
 
-Từ máy khách, hãy thử kết nối bằng lệnh:
+From a client machine, try connecting using the following command:
 
 ```bash
 ssh <username>@<ip-address>
 ```
 
-**Linh hồn của hệ thống (Dotfiles):**
-Sau khi SSH thành công, đừng quên chạy script cài đặt dotfiles để hoàn thiện môi trường làm việc:
+**Final Step (Dotfiles):**
+Once the SSH connection is successful, run the dotfiles installation script to complete your environment setup:
 ```powershell
 irm https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.ps1 | iex
 ```
+

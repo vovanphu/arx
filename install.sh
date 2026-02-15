@@ -165,4 +165,4 @@ if [ -f "$HOME/.ssh/id_ed25519" ]; then
     mv "$HOME/.ssh/id_ed25519.pub" "$HOME/.ssh/id_ed25519.pub.bak" 2>/dev/null || true
 fi
 
-echo -e "\n$(printf '\U2728') Setup complete! Please reload your shell."
+echo -e "\n[DONE] Setup complete! Please reload your shell."

@@ -194,7 +194,7 @@ catch {
     exit 1
 }
 finally {
-    # LUÔN LUÔN xóa file .env dù thành công hay thất bại
+    # ALWAYS delete .env file regardless of success or failure
     if (Test-Path $envFile) {
         Write-Host "Cleaning up security credentials (.env)..." -ForegroundColor Gray
         Remove-Item $envFile -Force

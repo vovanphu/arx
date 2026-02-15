@@ -36,9 +36,6 @@
 {{-   $hostname_selection = env "HOSTNAME" -}}
 {{- else -}}
 {{-   $hostname_selection = promptStringOnce . "hostname" "Enter Hostname" "custom" -}}
-{{-   if eq $hostname_selection "custom" -}}
-{{-     $hostname_selection = promptString "Enter Custom Hostname" -}}
-{{-   end -}}
 {{- end -}}
 
 {{- /* If custom, ask for custom hostname (fallback for interactive use) */ -}}
