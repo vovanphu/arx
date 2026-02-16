@@ -63,14 +63,28 @@ data:
     # Aliases
     commonAliases:
         g: "git"
+        ga: "git add"
+        gc: "git commit -v"
+        gp: "git push"
+        gl: "git log --oneline --graph --all"
+        gd: "git diff"
         st: "git status"
         chez: "chezmoi"
+        ca: "chezmoi apply"
+        ce: "chezmoi edit"
+        cdif: "chezmoi diff"
+        v: "nvim"
     
     # OS-Specific Overrides
     winAliases:
-        l: "Get-ChildItem -Force"
+        l: "ls"
+        ll: "Get-ChildItem -Force"
+        grep: "rg"
     
     unixAliases:
-        l: "ls -lah"
+        l: "ls -F"
+        ll: "ls -lah"
+        la: "ls -A"
+        grep: "rg"
     
     editor: "nvim"
