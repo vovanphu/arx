@@ -71,6 +71,7 @@ windows:
     - "Git.Git"
     - "Bitwarden.CLI"
     - "Tailscale.Tailscale"
+    - "Google.Antigravity"
   extras: # Installed if NOT 'server' role
     - "Neovim.Neovim"
     - "BurntSushi.ripgrep.MSVC"
@@ -81,6 +82,13 @@ windows:
   roles:
     centaur: # Formerly Commander (Chiron the Wise)
       - "Microsoft.VisualStudioCode"
+      - "SlackTechnologies.Slack"
+      - "MoonlightGameStreamingProject.Moonlight"
+      - "Google.Chrome"
+      - "Postman.Postman"
+      - "Microsoft.PowerToys"
+      - "Obsidian.Obsidian"
+      - "dbeaver.dbeaver"
       # - "Kubernetes.kubectl"
       # - "Helm.Helm"
     chimera: # Formerly Workstation
