@@ -9,7 +9,7 @@ trap 'rm -f .env' EXIT
 # --- Remote Bootstrap Logic ---
 if [ ! -f "install.sh" ]; then 
     echo "Running in Remote Bootstrap Mode..."
-    DEST_DIR="$HOME/dotfiles"
+    DEST_DIR="$HOME/arx"
     
     if [ -f ".env" ]; then
         echo "Found .env in current directory. Loading credentials..."

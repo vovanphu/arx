@@ -6,7 +6,7 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
 # --- Remote Bootstrap Logic ---
 if (-not $PSScriptRoot) {
     Write-Host "Running in Remote Bootstrap Mode..." -ForegroundColor Cyan
-    $DEST_DIR = "$HOME\dotfiles"
+    $DEST_DIR = "$HOME\arx"
 
     if (Test-Path ".env") {
         Write-Host "Found .env in current directory. Loading automation variables..." -ForegroundColor Gray
