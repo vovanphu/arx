@@ -60,6 +60,6 @@ ssh <username>@<ip-address>
 **Final Step (Dotfiles):**
 Once the SSH connection is successful, run the dotfiles installation script to complete your environment setup:
 ```powershell
-irm https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.ps1 | iex
+irm https://raw.githubusercontent.com/vovanphu/arx/master/install.ps1 | iex
 ```
 

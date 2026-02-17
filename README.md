@@ -18,15 +18,15 @@ The script automatically installs `chezmoi`, `bitwarden-cli`, `git`, `tailscale`
 
 *   **Option A: Interactive** (Prompts for secrets):
     ```powershell
-    irm https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.ps1 | iex
+    irm https://raw.githubusercontent.com/vovanphu/arx/master/install.ps1 | iex
     ```
 *   **Option B: Automated** (Zero-touch, will auto-delete `.env`):
     ```powershell
-    @("BW_EMAIL=user@mail.com", "BW_PASSWORD=pass", "ROLE=centaur", "HOSTNAME=chiron", "USER_NAME='vovanphu'", "EMAIL_ADDRESS='vovanphu1012@gmail.com'") | Set-Content .env; irm https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.ps1 | iex
+    @("BW_EMAIL=user@mail.com", "BW_PASSWORD=pass", "ROLE=centaur", "HOSTNAME=chiron", "USER_NAME='vovanphu'", "EMAIL_ADDRESS='vovanphu1012@gmail.com'") | Set-Content .env; irm https://raw.githubusercontent.com/vovanphu/arx/master/install.ps1 | iex
     ```
 *   **Option C: Direct Environment Injection** (No temporary files):
     ```powershell
-    $env:BW_EMAIL="user@mail.com"; $env:BW_PASSWORD="pass"; $env:ROLE="centaur"; irm https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.ps1 | iex
+    $env:BW_EMAIL="user@mail.com"; $env:BW_PASSWORD="pass"; $env:ROLE="centaur"; irm https://raw.githubusercontent.com/vovanphu/arx/master/install.ps1 | iex
     ```
 
 #### 🐧 Linux / WSL
@@ -34,15 +34,15 @@ Handles dependency checks, Bitwarden authentication, and SSH agent reuse.
 
 *   **Option A: Interactive**:
     ```bash
-    bash -c "$(curl -fsSL https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.sh)"
+    bash -c "$(curl -fsSL https://raw.githubusercontent.com/vovanphu/arx/master/install.sh)"
     ```
 *   **Option B: Automated** (Zero-touch, will auto-delete `.env`):
     ```bash
-    echo "BW_EMAIL=user@mail.com" > .env; echo "BW_PASSWORD=pass" >> .env; echo "ROLE=centaur" >> .env; echo "USER_NAME='vovanphu'" >> .env; bash -c "$(curl -fsSL https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.sh)"
+    echo "BW_EMAIL=user@mail.com" > .env; echo "BW_PASSWORD=pass" >> .env; echo "ROLE=centaur" >> .env; echo "USER_NAME='vovanphu'" >> .env; bash -c "$(curl -fsSL https://raw.githubusercontent.com/vovanphu/arx/master/install.sh)"
     ```
 *   **Option C: Direct Environment Injection** (No temporary files):
     ```bash
-    BW_EMAIL="user@mail.com" BW_PASSWORD="pass" ROLE="centaur" bash -c "$(curl -fsSL https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.sh)"
+    BW_EMAIL="user@mail.com" BW_PASSWORD="pass" ROLE="centaur" bash -c "$(curl -fsSL https://raw.githubusercontent.com/vovanphu/arx/master/install.sh)"
     ```
 
 ---

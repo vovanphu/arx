@@ -1,6 +1,6 @@
 #!/bin/bash
 # Usage: ./install.sh
-#        OR: sh -c "$(curl -fsSL https://raw.githubusercontent.com/vovanphu/dotfiles/master/install.sh)"
+#        OR: sh -c "$(curl -fsSL https://raw.githubusercontent.com/vovanphu/arx/master/install.sh)"
 
 # --- Global Settings ---
 # Ensure .env is deleted on exit (secure cleanup)
@@ -29,7 +29,7 @@ if [ ! -f "install.sh" ]; then
     
     if [ ! -d "$DEST_DIR" ]; then
         echo "Cloning repository to $DEST_DIR..."
-        git clone https://github.com/vovanphu/dotfiles.git "$DEST_DIR"
+        git clone https://github.com/vovanphu/arx.git "$DEST_DIR"
     else
         echo "Repo exists. Updating..."
         cd "$DEST_DIR" || exit

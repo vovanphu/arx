@@ -36,7 +36,7 @@ if (-not $PSScriptRoot) {
     
     if (-not (Test-Path $DEST_DIR)) {
         Write-Host "Cloning repository to $DEST_DIR..." -ForegroundColor Gray
-        git clone https://github.com/vovanphu/dotfiles.git $DEST_DIR
+        git clone https://github.com/vovanphu/arx.git $DEST_DIR
     } else {
         Write-Host "Repository exists. Updating..." -ForegroundColor Gray
         Set-Location $DEST_DIR; git pull
