@@ -8,7 +8,7 @@ My personal dotfiles managed by [chezmoi](https://chezmoi.io).
 ### 1. Prerequisites
 *   **Bitwarden Account**: You need a Bitwarden account with the following items:
     *   **Secure Notes**: `ssh-key-master-ed25519` and `ssh-key-server-ed25519` (Private Keys).
-    *   **Login**: `tailscale-auth-key` (Reusable key). *Note: Must be rotated every 90 days.*
+    *   **Password**: `tailscale-auth-key` (One-off key). *Generate a new key for each new machine setup. Enable "Pre-approved" so devices auto-authorize.*
 *   **Internet**: Required for package downloads.
 
 ### 2. Quick Start
@@ -87,3 +87,9 @@ If you need to configure SSH for a Windows VM or a new target machine, refer to 
 *   [**Install OpenSSH Server on Windows**](docs/ssh-windows-setup.md)
 
 Then run the install script again.
+
+## 📋 Known Issues / TODO
+
+*   [ ] **BW_SESSION**: Currently passed via environment variables. Consider using `bw --sessionfile` for better security.
+*   [ ] **Error Handling**: Package installation failures only warn, don't fail the script. Consider stricter error handling.
+*   [ ] **SSH Agent**: Add wait/retry loop to ensure service is ready before adding keys.
