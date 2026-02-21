@@ -8,6 +8,19 @@ CURRENT_NAME=$(hostname)
 # Check if running inside WSL
 if grep -qE "(Microsoft|WSL)" /proc/version >/dev/null 2>&1; then
     TARGET_NAME="${TARGET_NAME}-wsl"
+    
+    # Decouple WSL hostname from Windows Host
+    echo "Configuring WSL hostname separation in /etc/wsl.conf..."
+    if ! grep -q "hostname=" /etc/wsl.conf 2>/dev/null; then
+        if is_root; then
+            mkdir -p /etc
+            echo -e "\n[network]\nhostname=${TARGET_NAME}\ngenerateHosts=false" >> /etc/wsl.conf
+        else
+            sudo mkdir -p /etc
+            echo -e "\n[network]\nhostname=${TARGET_NAME}\ngenerateHosts=false" | sudo tee -a /etc/wsl.conf > /dev/null
+        fi
+        echo "WSL hostname decoupled. You will need to run 'wsl --shutdown' from Windows for this to fully apply."
+    fi
 fi
 
 echo "--- System Configuration ---"
