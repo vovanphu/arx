@@ -5,6 +5,11 @@
 TARGET_NAME="{{ .hostname }}"
 CURRENT_NAME=$(hostname)
 
+# Check if running inside WSL
+if grep -qE "(Microsoft|WSL)" /proc/version >/dev/null 2>&1; then
+    TARGET_NAME="${TARGET_NAME}-wsl"
+fi
+
 echo "--- System Configuration ---"
 
 # Function to check if running as root
