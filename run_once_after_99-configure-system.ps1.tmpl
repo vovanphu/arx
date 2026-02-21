@@ -73,5 +73,18 @@ if ($currentName -ne $targetName) {
 } else {
     Write-Host "System Hostname is already synced ($targetName)." -ForegroundColor Green
 }
+
+# 3. OpenSSH Default Shell Configuration
+Write-Host "Configuring OpenSSH Default Shell to PowerShell..." -ForegroundColor Cyan
+try {
+    $openSshKeyPath = "HKLM:\SOFTWARE\OpenSSH"
+    if (-not (Test-Path $openSshKeyPath)) {
+        New-Item -Path $openSshKeyPath -Force | Out-Null
+    }
+    New-ItemProperty -Path $openSshKeyPath -Name DefaultShell -Value "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -PropertyType String -Force | Out-Null
+    Write-Host "SUCCESS: OpenSSH Default Shell set to PowerShell." -ForegroundColor Green
+} catch {
+    Write-Warning "Failed to set OpenSSH Default Shell. Please run as Administrator."
+}
 {{ end }}
 
