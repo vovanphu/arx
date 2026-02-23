@@ -59,7 +59,121 @@ data:
     is_wsl: {{ $is_wsl }}
     role: {{ $role | quote }}
     hostname: {{ $hostname_selection | quote }}
-    
+
+    # ===== ROLE TAXONOMY (Single Source of Truth) =====
+    # This section defines ALL roles and their capabilities
+    # Update this when adding new roles - all templates will automatically adapt
+
+    roles:
+        # Admin/Management Roles
+        centaur:
+            description: "Portable workstation (laptop)"
+            has_master_key: true
+            has_server_key: false
+            receives_ssh: false
+            is_server: false
+            install_desktop_tools: true
+
+        chimera:
+            description: "Primary development workstation"
+            has_master_key: true
+            has_server_key: true
+            receives_ssh: true
+            is_server: false
+            install_desktop_tools: true
+
+        griffin:
+            description: "Secondary workstation"
+            has_master_key: false
+            has_server_key: true
+            receives_ssh: true
+            is_server: false
+            install_desktop_tools: true
+
+        # Server Fleet
+        hydra:
+            description: "Main server"
+            has_master_key: false
+            has_server_key: true
+            receives_ssh: true
+            is_server: true
+            install_desktop_tools: false
+
+        cyclops:
+            description: "Application server"
+            has_master_key: false
+            has_server_key: true
+            receives_ssh: true
+            is_server: true
+            install_desktop_tools: false
+
+        kraken:
+            description: "Database server"
+            has_master_key: false
+            has_server_key: true
+            receives_ssh: true
+            is_server: true
+            install_desktop_tools: false
+
+        cerberus:
+            description: "Security/firewall server"
+            has_master_key: false
+            has_server_key: true
+            receives_ssh: true
+            is_server: true
+            install_desktop_tools: false
+
+        golem:
+            description: "Build/CI server"
+            has_master_key: false
+            has_server_key: true
+            receives_ssh: true
+            is_server: true
+            install_desktop_tools: false
+
+        minion:
+            description: "Worker/compute node"
+            has_master_key: false
+            has_server_key: true
+            receives_ssh: true
+            is_server: true
+            install_desktop_tools: false
+
+        siren:
+            description: "Monitoring/alerting server"
+            has_master_key: false
+            has_server_key: true
+            receives_ssh: true
+            is_server: true
+            install_desktop_tools: false
+
+    # ===== COMPUTED ROLE GROUPS (Auto-generated from taxonomy) =====
+    # Templates should reference these groups instead of hardcoding role lists
+
+    # Roles that get Master SSH key deployed
+    roles_with_master_key: {{ list "centaur" "chimera" | join " " | quote }}
+
+    # Roles that get Server SSH key deployed
+    roles_with_server_key: {{ list "chimera" "hydra" "griffin" "cyclops" "kraken" "cerberus" "golem" "minion" "siren" | join " " | quote }}
+
+    # Roles that receive SSH connections (need authorized_keys)
+    roles_receiving_ssh: {{ list "chimera" "hydra" "griffin" "cyclops" "kraken" "cerberus" "golem" "minion" "siren" | join " " | quote }}
+
+    # Server roles (headless, no GUI)
+    roles_server: {{ list "hydra" "cyclops" "kraken" "cerberus" "golem" "minion" "siren" | join " " | quote }}
+
+    # Workstation roles (with GUI tools)
+    roles_workstation: {{ list "centaur" "chimera" "griffin" | join " " | quote }}
+
+    # ===== ROLE CAPABILITY CHECKS (Helper functions for templates) =====
+    # Usage in templates: {{ if .has_master_key }}...{{ end }}
+
+    has_master_key: {{ has $role (list "centaur" "chimera") }}
+    has_server_key: {{ has $role (list "chimera" "hydra" "griffin" "cyclops" "kraken" "cerberus" "golem" "minion" "siren") }}
+    receives_ssh: {{ has $role (list "chimera" "hydra" "griffin" "cyclops" "kraken" "cerberus" "golem" "minion" "siren") }}
+    is_server: {{ has $role (list "hydra" "cyclops" "kraken" "cerberus" "golem" "minion" "siren") }}
+    is_workstation: {{ has $role (list "centaur" "chimera" "griffin") }}
+
     # Aliases
     commonAliases:
         g: "git"

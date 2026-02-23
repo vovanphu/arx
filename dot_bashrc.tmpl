@@ -34,7 +34,7 @@ if [[ "$-" == *i* ]]; then
 fi
 
 # Role-specific logic
-{{ if or (eq .role "cyclops") (eq .role "hydra") (eq .role "server") }}
+{{ if .is_server }}
 # Add warning prompt for servers
 export PS1="\[\033[01;31m\][SERVER]\[\033[00m\] \u@\h:\w\$ "
 
@@ -73,9 +73,10 @@ if ! ssh-add -l >/dev/null 2>&1; then
     eval "$(ssh-agent -s -a "$SSH_AUTH_SOCK")" > /dev/null
 fi
 
-{{ $keyFile := "id_ed25519_dotfiles_master" -}}
-{{- if not (or (eq .role "centaur") (eq .role "chimera")) -}}
-{{-   $keyFile = "id_ed25519_dotfiles_server" -}}
+{{/* Auto-select SSH key based on role capability */}}
+{{ $keyFile := "id_ed25519_dotfiles_server" -}}
+{{- if .has_master_key -}}
+{{-   $keyFile = "id_ed25519_dotfiles_master" -}}
 {{- end -}}
 
 if [ -f "$HOME/.ssh/{{ $keyFile }}" ]; then

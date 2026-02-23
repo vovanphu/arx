@@ -1,11 +1,20 @@
-{{- /* Only generate authorized_keys for Chimera or Server Fleet */ -}}
-{{- if or (eq .role "chimera") (eq .role "hydra") (eq .role "griffin") (eq .role "cyclops") (eq .role "kraken") (eq .role "cerberus") (eq .role "golem") (eq .role "minion") (eq .role "siren") -}}
+{{- /* Generate authorized_keys for roles that receive SSH connections */ -}}
+{{- if .receives_ssh -}}
 {{-   if (env "BW_SESSION") -}}
 {{-     $masterKey := (bitwarden "item" "ssh-key-master-ed25519") -}}
+{{-     $serverKey := (bitwarden "item" "ssh-key-server-ed25519") -}}
 {{-     if $masterKey -}}
 {{-       range $masterKey.fields -}}
 {{-         if eq .name "public_key" -}}
-# Master Key (Access from Centaur/Chimera)
+# Master Key (Access from admin workstations)
+{{ .value }}
+{{-         end -}}
+{{-       end -}}
+{{-     end -}}
+{{-     if $serverKey -}}
+{{-       range $serverKey.fields -}}
+{{-         if eq .name "public_key" -}}
+# Server Key (Server-to-server access)
 {{ .value }}
 {{-         end -}}
 {{-       end -}}

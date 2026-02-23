@@ -15,14 +15,14 @@ Host github.com
     User git
     Hostname github.com
 
-# Role-Based Keys
-{{- if or (eq .role "centaur") (eq .role "chimera") }}
-# Master Identity (Centaur & Chimera)
+# Role-Based Keys (auto-configured based on role capabilities)
+{{- if .has_master_key }}
+# Master Identity (Admin workstations)
 IdentityFile ~/.ssh/id_ed25519_dotfiles_master
 {{- end }}
 
-{{- if or (eq .role "hydra") (eq .role "griffin") (eq .role "cyclops") (eq .role "kraken") (eq .role "cerberus") (eq .role "golem") (eq .role "minion") (eq .role "siren") }}
-# Deploy Identity (Server Fleet)
+{{- if .has_server_key }}
+# Server Identity (Servers and workstations with server access)
 IdentityFile ~/.ssh/id_ed25519_dotfiles_server
 {{- end }}
 

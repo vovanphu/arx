@@ -11,11 +11,13 @@ $packages = @(
 {{ range $winData.common }}
     "{{ . }}",
 {{ end }}
-{{ if or (eq .role "centaur") (eq .role "chimera") (eq .role "griffin") }}
+{{/* Install desktop tools for workstation roles */}}
+{{ if .is_workstation }}
 {{ range $winData.extras }}
     "{{ . }}",
 {{ end }}
 {{ end }}
+{{/* Install role-specific packages if defined */}}
 {{ if hasKey $winData.roles .role }}
   {{ range index $winData.roles .role }}
     "{{ . }}",

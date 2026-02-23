@@ -32,12 +32,19 @@ Write-Host "Entering Dotfiles Environment (Role: {{ .role }})..." -ForegroundCol
 if ((Get-Service ssh-agent).Status -ne 'Running') {
     Start-Service ssh-agent
 }
-# Add Master Key if not present
-if (Test-Path "$HOME/.ssh/id_ed25519_dotfiles_master") {
+
+{{/* Auto-select SSH key based on role capability */}}
+{{ $keyFile := "id_ed25519_dotfiles_server" -}}
+{{- if .has_master_key -}}
+{{-   $keyFile = "id_ed25519_dotfiles_master" -}}
+{{- end -}}
+
+# Add key if not present
+if (Test-Path "$HOME/.ssh/{{ $keyFile }}") {
     $sshList = ssh-add -l
     if ($sshList -notmatch "SHA256") {
         # Redirect stderr to void to hide "Identity added" noise if successful
-        ssh-add "$HOME/.ssh/id_ed25519_dotfiles_master" 2>$null
+        ssh-add "$HOME/.ssh/{{ $keyFile }}" 2>$null
     }
 }
 

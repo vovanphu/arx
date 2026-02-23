@@ -1,4 +1,5 @@
-{{- if or (eq .role "hydra") (eq .role "griffin") (eq .role "cyclops") (eq .role "kraken") (eq .role "cerberus") (eq .role "golem") (eq .role "minion") (eq .role "siren") -}}
+{{- /* Deploy Server SSH key based on role capability */ -}}
+{{- if .has_server_key -}}
 {{-   if (env "BW_SESSION") -}}
 {{-     $key := (bitwarden "item" "ssh-key-server-ed25519") -}}
 {{-     if $key -}}
