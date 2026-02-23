@@ -1,0 +1,26 @@
+# Repository metadata and documentation
+README.md
+DESIGN.md
+LICENSE
+.gitignore
+.gitattributes
+
+# Installation scripts (only needed in repo, not in $HOME)
+install.sh
+install.ps1
+
+# Configuration files for the repo itself
+packages.yaml
+env.example
+arx.code-workspace
+
+# Debug and utility scripts
+debug_ssh_gen.ps1
+
+# Documentation directory
+docs
+docs/**
+
+# Templates that should only be processed, not copied as-is
+# (chezmoi handles .tmpl files automatically, but listing here for clarity)
+powershell_profile.ps1.tmpl
