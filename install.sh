@@ -154,6 +154,8 @@ if [ -n "$ROLE_VAR" ] || [ -n "$HOSTNAME_VAR" ] || [ -n "$EMAIL_ADDRESS_VAR" ]; 
 fi
 
 echo "Initializing Chezmoi..."
+# Change to HOME to avoid chezmoi scanning current directory for dotfiles
+cd "$HOME" || exit
 "$CHEZMOI_BIN" init --force --source="$SCRIPT_DIR"
 if [ $? -ne 0 ]; then echo "Error: Chezmoi init failed."; exit 1; fi
 
