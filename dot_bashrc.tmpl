@@ -61,12 +61,15 @@ fi
 
 
 # --- SSH Agent Auto-Load ---
-# --- SSH Agent Auto-Load (Robost Socket Reuse) ---
+# --- SSH Agent Auto-Load (Robust Socket Reuse) ---
 mkdir -p "$HOME/.ssh"
 export SSH_AUTH_SOCK="$HOME/.ssh/agent.sock"
 
-# Check if socket exists and is valid
-if [ ! -S "$SSH_AUTH_SOCK" ]; then
+# Check if agent is actually running (not just socket existing)
+if ! ssh-add -l >/dev/null 2>&1; then
+    # Remove stale socket if exists
+    [ -S "$SSH_AUTH_SOCK" ] && rm -f "$SSH_AUTH_SOCK"
+    # Start new agent
     eval "$(ssh-agent -s -a "$SSH_AUTH_SOCK")" > /dev/null
 fi
 
