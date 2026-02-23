@@ -15,10 +15,24 @@ is_root() {
 # 1. Tailscale Configuration (Automatic)
 if command -v tailscale >/dev/null 2>&1; then
     echo "Found Tailscale. Checking status..."
+
+    # Ensure resolv.conf is writable for MagicDNS (WSL-specific fix)
+    if [ -f /etc/resolv.conf ]; then
+        # Check if file is immutable
+        if lsattr /etc/resolv.conf 2>/dev/null | grep -q -- '----i'; then
+            echo "Removing immutable flag from /etc/resolv.conf for MagicDNS..."
+            if is_root; then
+                chattr -i /etc/resolv.conf 2>/dev/null || true
+            else
+                sudo chattr -i /etc/resolv.conf 2>/dev/null || true
+            fi
+        fi
+    fi
+
     # Check if logged in (status returns exit code 1 if not running/logged out usually)
     if ! tailscale status >/dev/null 2>&1; then
         echo "Tailscale is not logged in. Attempting auto-auth via Bitwarden..."
-        
+
         if [ -n "$BW_SESSION" ]; then
              TS_KEY=$(bw get password "tailscale-auth-key")
              if [ -n "$TS_KEY" ]; then
