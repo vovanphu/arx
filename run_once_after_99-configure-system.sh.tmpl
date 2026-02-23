@@ -60,6 +60,21 @@ if [ "$CURRENT_NAME" != "$TARGET_NAME" ]; then
         else
             sudo hostnamectl set-hostname "$TARGET_NAME"
         fi
+
+        # Update /etc/hosts to prevent sudo warnings (systemd doesn't do this automatically)
+        if grep -q "127.0.1.1" /etc/hosts; then
+            if is_root; then
+                sed -i "s/^127.0.1.1.*/127.0.1.1\t$TARGET_NAME/" /etc/hosts
+            else
+                sudo sed -i "s/^127.0.1.1.*/127.0.1.1\t$TARGET_NAME/" /etc/hosts
+            fi
+        else
+            if is_root; then
+                echo -e "127.0.1.1\t$TARGET_NAME" >> /etc/hosts
+            else
+                echo -e "127.0.1.1\t$TARGET_NAME" | sudo tee -a /etc/hosts > /dev/null
+            fi
+        fi
     else
         # Legacy method
         if is_root; then
