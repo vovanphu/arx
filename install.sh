@@ -181,4 +181,13 @@ if ! "$CHEZMOI_BIN" apply --source="$SCRIPT_DIR" --force; then
     echo "You can re-run: chezmoi apply --force"
 fi
 
+# Security: Clear sensitive environment variables
+if [ -n "$BW_SESSION" ]; then
+    echo "Clearing Bitwarden session from environment..."
+    unset BW_SESSION
+fi
+if [ -n "$BW_PASSWORD" ]; then
+    unset BW_PASSWORD
+fi
+
 echo -e "\n[DONE] Setup complete! Please reload your shell."

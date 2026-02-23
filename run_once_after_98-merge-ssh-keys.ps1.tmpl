@@ -5,6 +5,18 @@
 
 Write-Host "--- Smart Merge SSH Configuration ---" -ForegroundColor Cyan
 
+# Backup Retention: Keep only 3 most recent backups
+$allBackups = Get-ChildItem "$HOME\.ssh.backup.*" -Directory -ErrorAction SilentlyContinue |
+              Sort-Object CreationTime -Descending
+if ($allBackups.Count -gt 3) {
+    Write-Host "Cleaning old SSH backups (keeping 3 most recent)..." -ForegroundColor Gray
+    $toRemove = $allBackups | Select-Object -Skip 3
+    foreach ($backup in $toRemove) {
+        Remove-Item $backup.FullName -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    Write-Host "  -> Removed $($toRemove.Count) old backup(s)" -ForegroundColor Gray
+}
+
 # Helper function: Find most recent backup
 function Get-LatestSshBackup {
     return Get-ChildItem "$HOME\.ssh.backup.*" -Directory -ErrorAction SilentlyContinue |

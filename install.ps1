@@ -174,6 +174,19 @@ try {
         }
     }
 
+    # Verify BW_SESSION is still valid before applying
+    if ($env:BW_SESSION) {
+        Write-Host "Verifying Bitwarden session..." -ForegroundColor Gray
+        try {
+            $bwStatus = bw status | ConvertFrom-Json
+            if ($bwStatus.status -ne "unlocked") {
+                Write-Warning "Bitwarden session expired. Templates requiring vault access may fail."
+            }
+        } catch {
+            Write-Warning "Could not verify Bitwarden session status."
+        }
+    }
+
     Write-Host "Applying dotfiles..." -ForegroundColor Green
     & $CHEZMOI_BIN apply --source="$PSScriptRoot" --force
     if ($LASTEXITCODE -ne 0) { throw "Failed to apply dotfiles." }
@@ -220,6 +233,17 @@ try {
         }
     }
 
+    # Security: Clear sensitive environment variables
+    if ($env:BW_SESSION) {
+        Write-Host "Clearing Bitwarden session from environment..." -ForegroundColor Gray
+        $env:BW_SESSION = $null
+        Remove-Item Env:BW_SESSION -ErrorAction SilentlyContinue
+    }
+    if ($env:BW_PASSWORD) {
+        $env:BW_PASSWORD = $null
+        Remove-Item Env:BW_PASSWORD -ErrorAction SilentlyContinue
+    }
+
     Write-Host "`n$([char]0x2728) Setup Complete! Please restart your terminal." -ForegroundColor Cyan
 }
 catch {
@@ -231,5 +255,13 @@ finally {
     if (Test-Path $envFile) {
         Write-Host "Cleaning up security credentials (.env)..." -ForegroundColor Gray
         Remove-Item $envFile -Force
+    }
+
+    # Additional security cleanup (in case error happened before main cleanup)
+    if ($env:BW_SESSION) {
+        Remove-Item Env:BW_SESSION -ErrorAction SilentlyContinue
+    }
+    if ($env:BW_PASSWORD) {
+        Remove-Item Env:BW_PASSWORD -ErrorAction SilentlyContinue
     }
 }

@@ -6,6 +6,15 @@
 
 echo "--- Smart Merge SSH Configuration ---"
 
+# Backup Retention: Keep only 3 most recent backups
+BACKUP_COUNT=$(ls -1d "$HOME"/.ssh.backup.* 2>/dev/null | wc -l)
+if [ "$BACKUP_COUNT" -gt 3 ]; then
+    echo "Cleaning old SSH backups (keeping 3 most recent)..."
+    ls -td "$HOME"/.ssh.backup.* 2>/dev/null | tail -n +4 | xargs rm -rf
+    REMOVED=$((BACKUP_COUNT - 3))
+    echo "  -> Removed $REMOVED old backup(s)"
+fi
+
 # Helper function: Find most recent backup
 get_latest_ssh_backup() {
     ls -td "$HOME"/.ssh.backup.* 2>/dev/null | head -n1
