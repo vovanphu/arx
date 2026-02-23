@@ -119,4 +119,26 @@ if [ "$CURRENT_NAME" != "$TARGET_NAME" ]; then
 else
     echo -e "\033[32mSystem Hostname is already synced.\033[0m"
 fi
+
+# 3. SSH Server Configuration (auto-start for all Linux systems)
+if command -v sshd >/dev/null 2>&1; then
+    echo "Checking SSH server status..."
+
+    # Check if SSH service is running
+    if ! systemctl is-active --quiet ssh 2>/dev/null && ! systemctl is-active --quiet sshd 2>/dev/null; then
+        echo "SSH server is not running. Starting service..."
+        if is_root; then
+            systemctl start ssh 2>/dev/null || systemctl start sshd 2>/dev/null || service ssh start
+            systemctl enable ssh 2>/dev/null || systemctl enable sshd 2>/dev/null || true
+        else
+            sudo systemctl start ssh 2>/dev/null || sudo systemctl start sshd 2>/dev/null || sudo service ssh start
+            sudo systemctl enable ssh 2>/dev/null || sudo systemctl enable sshd 2>/dev/null || true
+        fi
+        echo -e "\033[32mSSH server started and enabled.\033[0m"
+    else
+        echo -e "\033[32mSSH server is already running.\033[0m"
+    fi
+else
+    echo "Note: SSH server (sshd) not found. Run 'sudo apt install openssh-server' if needed."
+fi
 {{ end }}

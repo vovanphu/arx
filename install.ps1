@@ -162,17 +162,23 @@ try {
     & $CHEZMOI_BIN init --force --source="$PSScriptRoot"
     if ($LASTEXITCODE -ne 0) { throw "Chezmoi init failed. Check for template errors." }
 
+    # Backup existing .ssh directory with timestamp (if exists and has content)
+    if (Test-Path "$HOME\.ssh") {
+        $sshFiles = Get-ChildItem "$HOME\.ssh" -ErrorAction SilentlyContinue
+        if ($sshFiles) {
+            $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+            $backupDir = "$HOME\.ssh.backup.$timestamp"
+            Write-Host "Backing up existing SSH configuration to $backupDir..." -ForegroundColor Yellow
+            Copy-Item "$HOME\.ssh" -Destination $backupDir -Recurse -Force
+            Write-Host "Backup created. You can restore with: Remove-Item ~/.ssh -Recurse -Force; Rename-Item $backupDir ~/.ssh" -ForegroundColor Gray
+        }
+    }
+
     Write-Host "Applying dotfiles..." -ForegroundColor Green
     & $CHEZMOI_BIN apply --source="$PSScriptRoot" --force
     if ($LASTEXITCODE -ne 0) { throw "Failed to apply dotfiles." }
 
     # --- Post-Install Tasks ---
-    # Migration/Backup
-    if (Test-Path "$HOME/.ssh/id_ed25519") {
-        Write-Host "Backing up legacy default keys..." -ForegroundColor Yellow
-        Rename-Item "$HOME/.ssh/id_ed25519" "id_ed25519.bak" -Force -ErrorAction SilentlyContinue
-        Rename-Item "$HOME/.ssh/id_ed25519.pub" "id_ed25519.pub.bak" -Force -ErrorAction SilentlyContinue
-    }
 
     # Windows Administrator SSH Key Fix
     # OpenSSH on Windows requires administrators to use C:\ProgramData\ssh\administrators_authorized_keys

@@ -97,8 +97,10 @@ windows:
       - "Microsoft.WSL"
       - "Docker.DockerDesktop"
       - "Microsoft.OpenSSH.Beta"
-    hydra: [] # Formerly MobileLab
-    cyclops: [] # Formerly Server
+    hydra:
+      - "Microsoft.OpenSSH.Beta"
+    cyclops:
+      - "Microsoft.OpenSSH.Beta"
 
 linux:
   common:
@@ -115,15 +117,18 @@ linux:
       - "ansible"
       # - "kubectl"
     chimera: # Formerly Workstation
+      - "openssh-server"
       - "build-essential"
       - "g++"
       - "gcc"
       - "make"
     hydra: # Proxmox Host (Bare Metal) - Minimal, PVE handles the rest
+      - "openssh-server"
       - "htop"
       - "ncdu"
       - "neofetch"
     griffin: # formerly MobileLab (Debian + KVM)
+      - "openssh-server"
       - "qemu-kvm"
       - "libvirt-daemon-system"
       - "libvirt-clients"
@@ -132,23 +137,29 @@ linux:
       - "htop"
       - "ncdu"
     cyclops: # General Purpose Server
+      - "openssh-server"
       - "nginx"
       - "net-tools"
     cerberus: # Bastion/Gateway
+      - "openssh-server"
       - "fail2ban"
       - "ufw"
       - "wireguard-tools"
     golem: # Database/Stateful
+      - "openssh-server"
       - "postgresql-client"
       - "redis-tools"
     minion: # Worker/Compute
+      - "openssh-server"
       - "docker.io"
       - "htop"
     siren: # Web/Proxy
+      - "openssh-server"
       - "nginx"
       - "certbot"
       - "python3-certbot-nginx"
     kraken: # Ceph/Storage Node
+      - "openssh-server"
       - "ceph-common"
       - "xfsprogs"
       - "smartmontools"

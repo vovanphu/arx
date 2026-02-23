@@ -160,6 +160,15 @@ cd "$HOME" || exit
 if [ $? -ne 0 ]; then echo "Error: Chezmoi init failed."; exit 1; fi
 
 echo "Applying dotfiles..."
+
+# Backup existing .ssh directory with timestamp (if exists and has content)
+if [ -d "$HOME/.ssh" ] && [ -n "$(ls -A "$HOME/.ssh" 2>/dev/null)" ]; then
+    BACKUP_DIR="$HOME/.ssh.backup.$(date +%Y%m%d_%H%M%S)"
+    echo "Backing up existing SSH configuration to $BACKUP_DIR..."
+    cp -a "$HOME/.ssh" "$BACKUP_DIR"
+    echo "Backup created. You can restore with: rm -rf ~/.ssh && mv $BACKUP_DIR ~/.ssh"
+fi
+
 # Ensure BW_SESSION is still valid before applying
 if [ -n "$BW_SESSION" ]; then
     echo "Verifying Bitwarden session..."
@@ -170,13 +179,6 @@ fi
 if ! "$CHEZMOI_BIN" apply --source="$SCRIPT_DIR" --force; then
     echo "Warning: Chezmoi apply encountered errors. Some dotfiles may not be configured correctly."
     echo "You can re-run: chezmoi apply --force"
-fi
-
-# Cleanup legacy keys
-if [ -f "$HOME/.ssh/id_ed25519" ]; then
-    echo "Backing up legacy default key..."
-    mv "$HOME/.ssh/id_ed25519" "$HOME/.ssh/id_ed25519.bak"
-    mv "$HOME/.ssh/id_ed25519.pub" "$HOME/.ssh/id_ed25519.pub.bak" 2>/dev/null || true
 fi
 
 echo -e "\n[DONE] Setup complete! Please reload your shell."
