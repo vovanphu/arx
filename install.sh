@@ -33,7 +33,9 @@ if [ ! -f "install.sh" ]; then
     else
         echo "Repo exists. Updating..."
         cd "$DEST_DIR" || exit
-        git pull
+        if ! git pull; then
+            echo "Warning: git pull failed. Using existing local version."
+        fi
     fi
     
     echo "Handing over to local install script..."
@@ -163,7 +165,10 @@ if [ -n "$BW_SESSION" ]; then
         echo "Warning: Bitwarden session expired. Templates requiring vault access may fail."
     fi
 fi
-"$CHEZMOI_BIN" apply --source="$SCRIPT_DIR" --force
+if ! "$CHEZMOI_BIN" apply --source="$SCRIPT_DIR" --force; then
+    echo "Warning: Chezmoi apply encountered errors. Some dotfiles may not be configured correctly."
+    echo "You can re-run: chezmoi apply --force"
+fi
 
 # Cleanup legacy keys
 if [ -f "$HOME/.ssh/id_ed25519" ]; then

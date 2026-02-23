@@ -24,8 +24,10 @@ if command_exists apt-get; then
         echo "Ensuring non-free repositories are enabled (Debian check)..."
         # Check if we are on Debian (to avoid breaking other distros like Ubuntu which use different names)
         if [ -f /etc/debian_version ]; then
-            # Add contrib non-free non-free-firmware if not present
-            sudo sed -i 's/main$/main contrib non-free non-free-firmware/g' /etc/apt/sources.list
+            # Add contrib non-free non-free-firmware if not already present
+            if ! grep -q "non-free" /etc/apt/sources.list; then
+                sudo sed -i 's/main$/main contrib non-free non-free-firmware/g' /etc/apt/sources.list
+            fi
         fi
     fi
     echo "Updating apt repositories..."
