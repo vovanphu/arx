@@ -174,6 +174,33 @@ try {
         Rename-Item "$HOME/.ssh/id_ed25519.pub" "id_ed25519.pub.bak" -Force -ErrorAction SilentlyContinue
     }
 
+    # Windows Administrator SSH Key Fix
+    # OpenSSH on Windows requires administrators to use C:\ProgramData\ssh\administrators_authorized_keys
+    # instead of ~/.ssh/authorized_keys
+    if (Test-Path "$HOME\.ssh\authorized_keys") {
+        Write-Host "Checking if current user is Administrator..." -ForegroundColor Gray
+        $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
+        if ($isAdmin) {
+            Write-Host "Administrator detected. Configuring SSH for admin account..." -ForegroundColor Yellow
+            $adminKeysPath = "C:\ProgramData\ssh\administrators_authorized_keys"
+
+            # Ensure directory exists
+            $sshProgramDataDir = "C:\ProgramData\ssh"
+            if (-not (Test-Path $sshProgramDataDir)) {
+                New-Item -ItemType Directory -Force -Path $sshProgramDataDir | Out-Null
+            }
+
+            # Copy authorized_keys to administrators_authorized_keys
+            Copy-Item "$HOME\.ssh\authorized_keys" -Destination $adminKeysPath -Force
+
+            # Set correct permissions: Only SYSTEM and Administrators should have access
+            icacls $adminKeysPath /inheritance:r /grant "SYSTEM:(F)" /grant "Administrators:(F)" | Out-Null
+
+            Write-Host "SSH keys configured for administrator account at: $adminKeysPath" -ForegroundColor Green
+        }
+    }
+
     # Profile Rendering
     $templatePath = Join-Path $PSScriptRoot "powershell_profile.ps1.tmpl"
     if (Test-Path $templatePath) {
