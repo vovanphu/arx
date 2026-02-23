@@ -156,6 +156,13 @@ echo "Initializing Chezmoi..."
 if [ $? -ne 0 ]; then echo "Error: Chezmoi init failed."; exit 1; fi
 
 echo "Applying dotfiles..."
+# Ensure BW_SESSION is still valid before applying
+if [ -n "$BW_SESSION" ]; then
+    echo "Verifying Bitwarden session..."
+    if ! bw status 2>&1 | grep -q '"status":"unlocked"'; then
+        echo "Warning: Bitwarden session expired. Templates requiring vault access may fail."
+    fi
+fi
 "$CHEZMOI_BIN" apply --source="$SCRIPT_DIR" --force
 
 # Cleanup legacy keys
