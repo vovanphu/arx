@@ -26,7 +26,7 @@ The script automatically installs `chezmoi`, `bitwarden-cli`, `git`, `tailscale`
     ```
 *   **Option C: Direct Environment Injection** (No temporary files):
     ```powershell
-    $env:BW_EMAIL="user@mail.com"; $env:BW_PASSWORD="pass"; $env:ROLE="centaur"; irm https://raw.githubusercontent.com/vovanphu/arx/master/install.ps1 | iex
+    $env:BW_EMAIL="user@mail.com"; $env:BW_PASSWORD="pass"; $env:ROLE="centaur"; $env:USER_NAME="vovanphu"; $env:EMAIL_ADDRESS="vovanphu1012@gmail.com"; irm https://raw.githubusercontent.com/vovanphu/arx/master/install.ps1 | iex
     ```
 
 #### 🐧 Linux / WSL
