@@ -1,23 +1,23 @@
 {{- /* Generate authorized_keys for roles that receive SSH connections */ -}}
-{{- if .receives_ssh -}}
-{{-   if (env "BW_SESSION") -}}
-{{-     $masterKey := (bitwarden "item" "ssh-key-master-ed25519") -}}
-{{-     $serverKey := (bitwarden "item" "ssh-key-server-ed25519") -}}
-{{-     if $masterKey -}}
-{{-       range $masterKey.fields -}}
-{{-         if eq .name "public_key" -}}
+{{ if .receives_ssh }}
+{{   if (env "BW_SESSION") }}
+{{     $masterKey := (bitwarden "item" "ssh-key-master-ed25519") }}
+{{     $serverKey := (bitwarden "item" "ssh-key-server-ed25519") }}
+{{     if $masterKey }}
+{{       range $masterKey.fields }}
+{{         if eq .name "public_key" }}
 # Master Key (Access from admin workstations)
 {{ .value }}
-{{-         end -}}
-{{-       end -}}
-{{-     end -}}
-{{-     if $serverKey -}}
-{{-       range $serverKey.fields -}}
-{{-         if eq .name "public_key" -}}
+{{         end }}
+{{       end }}
+{{     end }}
+{{     if $serverKey }}
+{{       range $serverKey.fields }}
+{{         if eq .name "public_key" }}
 # Server Key (Server-to-server access)
 {{ .value }}
-{{-         end -}}
-{{-       end -}}
-{{-     end -}}
-{{-   end -}}
-{{- end -}}
+{{         end }}
+{{       end }}
+{{     end }}
+{{   end }}
+{{ end }}

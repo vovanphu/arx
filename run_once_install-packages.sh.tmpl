@@ -84,14 +84,14 @@ if [ "{{ .role }}" = "centaur" ] || [ "{{ .role }}" = "chimera" ] || [ "{{ .role
 fi
 
 # Role-specific packages
-{{- if hasKey $linuxData.roles .role -}}
-    {{- $rolePkgs := index $linuxData.roles .role -}}
-    {{- if $rolePkgs }}
-    {{- range $rolePkgs -}}
-        PACKAGES="$PACKAGES {{ . }}"
-    {{- end -}}
-    {{- end -}}
-{{- end -}}
+{{ if hasKey $linuxData.roles .role }}
+{{   $rolePkgs := index $linuxData.roles .role }}
+{{   if $rolePkgs }}
+{{     range $rolePkgs }}
+PACKAGES="$PACKAGES {{ . }}"
+{{     end }}
+{{   end }}
+{{ end }}
 
 echo "Installing packages: $PACKAGES"
 
