@@ -110,6 +110,15 @@ try {
             }
         }
 
+        # Validate email addresses
+        $emailRegex = '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+        if ($email -and $email -notmatch $emailRegex) {
+            Write-Warning "BW_EMAIL '$email' does not appear to be a valid email address."
+        }
+        if ($emailAddress -and $emailAddress -notmatch $emailRegex) {
+            Write-Warning "EMAIL_ADDRESS '$emailAddress' does not appear to be a valid email address."
+        }
+
         if ($role -or $hostname -or $userName) {
             Write-Host "Automation Detected: ROLE=$role, HOSTNAME=$hostname, USER=$userName" -ForegroundColor Cyan
         }

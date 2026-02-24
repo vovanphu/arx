@@ -5,10 +5,15 @@
 # This script runs only when the hash of this file changes.
 # Fixed line endings
 
+# Configuration URLs (can be overridden via environment variables)
+TAILSCALE_INSTALL_URL="${TAILSCALE_URL:-https://tailscale.com/install.sh}"
+STARSHIP_INSTALL_URL="${STARSHIP_URL:-https://starship.rs/install.sh}"
+BITWARDEN_CLI_URL="${BW_CLI_URL:-https://vault.bitwarden.com/download/?app=cli&platform=linux}"
+NERD_FONT_URL="${NERD_FONT_URL:-https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip}"
 
 set -eu
-# pipefail is bash-only, removing to be safe for now or enable strictly if bash confirmed
-# set -o pipefail
+# Bash-specific features are used (like [[), so pipefail is acceptable
+set -o pipefail
 
 echo "Starting Linux Package Installation..."
 
@@ -37,7 +42,7 @@ fi
 # Pre-install Tailscale via official script if missing
 if ! command_exists tailscale; then
     echo "Tailscale not found. Running official installer to setup repos..."
-    curl -fsSL https://tailscale.com/install.sh | sh
+    curl -fsSL "$TAILSCALE_INSTALL_URL" | sh
 fi
 
 {{ $pkgData := include "packages.yaml" | fromYaml }}
@@ -83,7 +88,7 @@ fi
 if [[ "$PACKAGES" == *"starship"* ]]; then
     if ! command_exists starship; then
         echo "Installing Starship..."
-        curl -sS https://starship.rs/install.sh | sh -s -- -y
+        curl -sS "$STARSHIP_INSTALL_URL" | sh -s -- -y
     else
         echo "Starship already installed."
     fi
@@ -93,7 +98,7 @@ fi
 if ! command_exists bw; then
     echo "Installing Bitwarden CLI..."
     # Download the native binary
-    curl -L "https://vault.bitwarden.com/download/?app=cli&platform=linux" -o bw.zip
+    curl -L "$BITWARDEN_CLI_URL" -o bw.zip
     unzip -o bw.zip
     chmod +x bw
     mkdir -p "$HOME/.local/bin"
@@ -118,13 +123,23 @@ if [[ "{{ .role }}" == "centaur" || "{{ .role }}" == "chimera" || "{{ .role }}" 
         fi
 
         # Download and install
-        curl -fLo "/tmp/FiraCode.zip" https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip
+        curl -fLo "/tmp/FiraCode.zip" "$NERD_FONT_URL"
         unzip -o -q "/tmp/FiraCode.zip" -d "$FONT_DIR"
         rm "/tmp/FiraCode.zip"
         
+        # Install fontconfig for fc-cache if not available
+        if ! command_exists fc-cache; then
+            if command_exists apt-get; then
+                echo "Installing fontconfig for font cache management..."
+                sudo apt-get install -y fontconfig
+            fi
+        fi
+
         if command_exists fc-cache; then
             echo "Updating font cache..."
             fc-cache -f "$FONT_DIR"
+        else
+            echo "Warning: fc-cache not available. Font cache not updated."
         fi
         echo "FiraCode Nerd Font installed successfully."
     else

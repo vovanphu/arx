@@ -2,6 +2,11 @@
 # Usage: ./install.sh
 #        OR: sh -c "$(curl -fsSL https://raw.githubusercontent.com/vovanphu/arx/master/install.sh)"
 
+# --- Configuration URLs (can be overridden via environment variables) ---
+REPO_URL="${ARX_REPO_URL:-https://github.com/vovanphu/arx.git}"
+CHEZMOI_INSTALL_URL="${CHEZMOI_URL:-https://get.chezmoi.io}"
+BITWARDEN_CLI_URL="${BW_CLI_URL:-https://vault.bitwarden.com/download/?app=cli&platform=linux}"
+
 # --- Global Settings ---
 # Ensure .env is deleted on exit (secure cleanup)
 trap 'rm -f .env' EXIT
@@ -11,10 +16,15 @@ if [ ! -f "install.sh" ]; then
     echo "Running in Remote Bootstrap Mode..."
     DEST_DIR="$HOME/arx"
     
-    if [ -f ".env" ]; then
+    if [ -f ".env" ] && [ ! -L ".env" ]; then
         echo "Found .env in current directory. Loading credentials..."
-        # Export variables to sub-processes
-        export $(grep -v '^#' .env | xargs)
+        # Export variables to sub-processes (safely with set -a)
+        set -a
+        # shellcheck disable=SC1091
+        . ".env"
+        set +a
+    elif [ -L ".env" ]; then
+        echo "Warning: .env is a symlink. Skipping for security reasons."
     fi
 
     if ! command -v git &> /dev/null; then
@@ -29,7 +39,7 @@ if [ ! -f "install.sh" ]; then
     
     if [ ! -d "$DEST_DIR" ]; then
         echo "Cloning repository to $DEST_DIR..."
-        git clone https://github.com/vovanphu/arx.git "$DEST_DIR"
+        git clone "$REPO_URL" "$DEST_DIR"
     else
         echo "Repo exists. Updating..."
         cd "$DEST_DIR" || exit
@@ -39,7 +49,9 @@ if [ ! -f "install.sh" ]; then
     fi
     
     echo "Handing over to local install script..."
-    [ -f ".env" ] && cp ".env" "$DEST_DIR/"
+    if [ -f ".env" ] && [ ! -L ".env" ]; then
+        cp ".env" "$DEST_DIR/"
+    fi
     cd "$DEST_DIR" || exit
     exec bash "install.sh"
     exit
@@ -52,7 +64,7 @@ CHEZMOI_BIN="$HOME/.local/bin/chezmoi"
 if [ ! -f "$CHEZMOI_BIN" ]; then
     echo "Installing chezmoi..."
     mkdir -p "$HOME/.local/bin"
-    sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
+    sh -c "$(curl -fsLS "$CHEZMOI_INSTALL_URL")" -- -b "$HOME/.local/bin"
 fi
 
 if ! command -v bw &> /dev/null; then
@@ -61,7 +73,7 @@ if ! command -v bw &> /dev/null; then
         if ! command -v unzip &> /dev/null; then
             sudo apt-get update && sudo apt-get install -y unzip
         fi
-        curl -L "https://vault.bitwarden.com/download/?app=cli&platform=linux" -o bw.zip
+        curl -L "$BITWARDEN_CLI_URL" -o bw.zip
         unzip -o bw.zip
         chmod +x bw
         mv bw "$HOME/.local/bin/"
@@ -82,17 +94,35 @@ if [ -z "${BW_SESSION:-}" ]; then
     USER_NAME_VAR="${USER_NAME:-}"
     EMAIL_ADDRESS_VAR="${EMAIL_ADDRESS:-}"
 
-    if [ -f ".env" ]; then
+    if [ -f ".env" ] && [ ! -L ".env" ]; then
         echo "Found .env file. Parsing for automation variables..."
         parse_var() {
-            grep "^$1=" .env | head -n1 | cut -d'=' -f2- | sed -e "s/#.*$//" -e "s/^[[:space:]]*//" -e "s/[[:space:]]*$//" -e "s/^['\"]//" -e "s/['\"]$//"
+            local var_name="$1"
+            local value
+            # Safely parse with proper quoting
+            value=$(grep "^${var_name}=" .env | head -n1 | cut -d'=' -f2- | sed -e "s/#.*$//" -e "s/^[[:space:]]*//" -e "s/[[:space:]]*$//" -e "s/^['\"]//" -e "s/['\"]$//")
+            printf '%s' "$value"
         }
-        [ -z "$PASSWORD" ] && PASSWORD=$(parse_var "BW_PASSWORD")
-        [ -z "$EMAIL" ] && EMAIL=$(parse_var "BW_EMAIL")
-        [ -z "$ROLE_VAR" ] && ROLE_VAR=$(parse_var "ROLE")
-        [ -z "$HOSTNAME_VAR" ] && HOSTNAME_VAR=$(parse_var "HOSTNAME")
-        [ -z "$USER_NAME_VAR" ] && USER_NAME_VAR=$(parse_var "USER_NAME")
-        [ -z "$EMAIL_ADDRESS_VAR" ] && EMAIL_ADDRESS_VAR=$(parse_var "EMAIL_ADDRESS")
+        [ -z "$PASSWORD" ] && PASSWORD="$(parse_var "BW_PASSWORD")"
+        [ -z "$EMAIL" ] && EMAIL="$(parse_var "BW_EMAIL")"
+        [ -z "$ROLE_VAR" ] && ROLE_VAR="$(parse_var "ROLE")"
+        [ -z "$HOSTNAME_VAR" ] && HOSTNAME_VAR="$(parse_var "HOSTNAME")"
+        [ -z "$USER_NAME_VAR" ] && USER_NAME_VAR="$(parse_var "USER_NAME")"
+        [ -z "$EMAIL_ADDRESS_VAR" ] && EMAIL_ADDRESS_VAR="$(parse_var "EMAIL_ADDRESS")"
+
+        # Validate email addresses if provided
+        if [ -n "$EMAIL" ]; then
+            if ! [[ "$EMAIL" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+                echo "Warning: BW_EMAIL '$EMAIL' does not appear to be a valid email address."
+            fi
+        fi
+        if [ -n "$EMAIL_ADDRESS_VAR" ]; then
+            if ! [[ "$EMAIL_ADDRESS_VAR" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+                echo "Warning: EMAIL_ADDRESS '$EMAIL_ADDRESS_VAR' does not appear to be a valid email address."
+            fi
+        fi
+    elif [ -L ".env" ]; then
+        echo "Warning: .env is a symlink. Skipping for security reasons."
     fi
 
     SHOULD_PROMPT=true

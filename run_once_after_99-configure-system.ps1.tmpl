@@ -21,15 +21,31 @@ $commonPaths = @(
 if (-not $tailscaleBin) {
     foreach ($path in $commonPaths) {
         if (Test-Path $path) {
-            $tailscaleBin = $path
-            break
+            # Verify it's executable
+            try {
+                $fileInfo = Get-Item $path -ErrorAction Stop
+                if ($fileInfo.Extension -eq '.exe') {
+                    $tailscaleBin = $path
+                    break
+                }
+            } catch {
+                Write-Warning "Found file at $path but cannot access it."
+            }
         }
     }
 }
 
 if ($tailscaleBin) {
     Write-Host "Found Tailscale at: $tailscaleBin. Checking status..." -ForegroundColor Cyan
-    $status = & $tailscaleBin status --peers=false 2>&1 | Out-String
+    try {
+        $status = & $tailscaleBin status --peers=false 2>&1 | Out-String
+    } catch {
+        Write-Warning "Failed to execute Tailscale binary. It may be corrupted."
+        $tailscaleBin = $null
+    }
+}
+
+if ($tailscaleBin -and $status) {
     
     if ($status -match "Logged out" -or $status -match "Tailscale is stopped") {
         Write-Host "Tailscale is not logged in. Attempting auto-auth via Bitwarden..." -ForegroundColor Yellow
