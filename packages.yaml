@@ -78,7 +78,7 @@ windows:
     - "junegunn.fzf"
     - "Starship.Starship"
     - "ajeetdsouza.zoxide"
-    - "JetBrains.JetBrainsMono"
+    - "DEVCOM.JetBrainsMonoNerdFont"
   roles:
     centaur: # Formerly Commander (Chiron the Wise)
       - "Microsoft.VisualStudioCode"
