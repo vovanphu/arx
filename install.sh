@@ -51,6 +51,19 @@ if [ ! -f "install.sh" ]; then
     echo "Handing over to local install script..."
     if [ -f ".env" ] && [ ! -L ".env" ]; then
         cp ".env" "$DEST_DIR/"
+    else
+        # Create .env from environment variables if they exist
+        if [ -n "${BW_EMAIL:-}" ] || [ -n "${BW_PASSWORD:-}" ] || [ -n "${ROLE:-}" ] || [ -n "${HOSTNAME:-}" ] || [ -n "${USER_NAME:-}" ] || [ -n "${EMAIL_ADDRESS:-}" ]; then
+            echo "Creating .env from environment variables..."
+            {
+                [ -n "${BW_EMAIL:-}" ] && echo "BW_EMAIL=$BW_EMAIL"
+                [ -n "${BW_PASSWORD:-}" ] && echo "BW_PASSWORD=$BW_PASSWORD"
+                [ -n "${ROLE:-}" ] && echo "ROLE=$ROLE"
+                [ -n "${HOSTNAME:-}" ] && echo "HOSTNAME=$HOSTNAME"
+                [ -n "${USER_NAME:-}" ] && echo "USER_NAME=$USER_NAME"
+                [ -n "${EMAIL_ADDRESS:-}" ] && echo "EMAIL_ADDRESS=$EMAIL_ADDRESS"
+            } > "$DEST_DIR/.env"
+        fi
     fi
     cd "$DEST_DIR" || exit
     exec bash "install.sh"

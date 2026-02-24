@@ -44,9 +44,24 @@ if (-not $PSScriptRoot) {
     
     Write-Host "Handing over to local install script..." -ForegroundColor Green
     # Propagate .env if present
-    if (Test-Path ".env") { 
+    if (Test-Path ".env") {
         Write-Host "Propagating .env to repository directory..." -ForegroundColor Gray
-        Copy-Item ".env" -Destination $DEST_DIR -Force 
+        Copy-Item ".env" -Destination $DEST_DIR -Force
+    } else {
+        # Create .env from environment variables if they exist
+        $hasEnvVars = $false
+        $envLines = @()
+        if ($env:BW_EMAIL)      { $envLines += "BW_EMAIL=$($env:BW_EMAIL)"; $hasEnvVars = $true }
+        if ($env:BW_PASSWORD)   { $envLines += "BW_PASSWORD=$($env:BW_PASSWORD)"; $hasEnvVars = $true }
+        if ($env:ROLE)          { $envLines += "ROLE=$($env:ROLE)"; $hasEnvVars = $true }
+        if ($env:HOSTNAME)      { $envLines += "HOSTNAME=$($env:HOSTNAME)"; $hasEnvVars = $true }
+        if ($env:USER_NAME)     { $envLines += "USER_NAME=$($env:USER_NAME)"; $hasEnvVars = $true }
+        if ($env:EMAIL_ADDRESS) { $envLines += "EMAIL_ADDRESS=$($env:EMAIL_ADDRESS)"; $hasEnvVars = $true }
+
+        if ($hasEnvVars) {
+            Write-Host "Creating .env from environment variables..." -ForegroundColor Gray
+            $envLines | Set-Content "$DEST_DIR\.env"
+        }
     }
     Set-Location $DEST_DIR
     & ".\install.ps1"
