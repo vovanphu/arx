@@ -72,6 +72,19 @@ if (-not (Get-Command bw -ErrorAction SilentlyContinue)) {
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 }
 
+# Check for ssh-keygen (required for public key derivation)
+if (-not (Get-Command ssh-keygen -ErrorAction SilentlyContinue)) {
+    Write-Host "Installing OpenSSH Client (Required for SSH key derivation)..." -ForegroundColor Cyan
+    # OpenSSH Client is usually pre-installed on Windows 10+, but ensure it's available
+    Add-WindowsCapability -Online -Name OpenSSH.Client* -ErrorAction SilentlyContinue
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
+    # Verify installation
+    if (-not (Get-Command ssh-keygen -ErrorAction SilentlyContinue)) {
+        Write-Warning "ssh-keygen not found. Public key derivation may fail. Consider installing Git for Windows or OpenSSH."
+    }
+}
+
 # --- Installation Block (with Secure Cleanup) ---
 $envFile = Join-Path $PSScriptRoot ".env"
 try {

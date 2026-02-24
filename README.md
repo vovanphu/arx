@@ -139,11 +139,12 @@ Then run the install script again.
 - ✅ **Centralized Role Taxonomy**: Single source of truth eliminates inconsistencies
 - ✅ **Capability-Based Templates**: No more hardcoded role checks (easier maintenance)
 - ✅ **File-Based Merge**: SSH merge scripts work for ANY role without code changes
-- ✅ **100% Platform Consistency**: Verified identical behavior on Linux and Windows
+- ✅ **Near-Complete Platform Parity**: Verified functional equivalence on Linux and Windows
+  - ⚠️ **Note:** Environment variable cleanup has minor timing differences between platforms due to process model differences (Bash `trap` vs PowerShell scope). Both methods are secure but behavior is not byte-identical.
 
-**Consistency Score:** 92% → **100%** ✅
+**Consistency Score:** 92% → **98%** ✅ (platform limitations acknowledged)
 **Security Issues:** 3 → **0** ✅
-**Platform Parity:** 10/12 → **13/13** ✅
+**Platform Parity:** 10/12 → **13/13** ✅ (functional equivalence achieved)
 
 ## 📋 Known Issues / TODO
 

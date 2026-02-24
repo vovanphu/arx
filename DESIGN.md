@@ -25,9 +25,9 @@ This project aims to unify the management of these environments using a single "
 *   Managing large binary assets or application state (databases, browser profiles).
 
 ### 2.3. User Stories
-*   **The Seamless Dev**: "I just bought a new laptop. I run `install.ps1`, choose `workstation`, and within 5 minutes, my terminal, Neovim, and Git are perfectly configured and my SSH keys are pulled from Bitwarden."
+*   **The Seamless Dev**: "I just bought a new laptop. I run `install.ps1`, choose `chimera` (workstation role), and within 5 minutes, my terminal, Neovim, and Git are perfectly configured and my SSH keys are pulled from Bitwarden."
 *   **The WSL Bridge**: "I work in WSL daily. My aliases in Ubuntu are identical to my PowerShell aliases, making the boundary between OSs feel invisible."
-*   **The Safe Admin**: "I'm logged into 10 different Debian servers. Because I chose the `server` role, my prompt clearly screams `[SERVER]`, preventing me from running a reboot command on the wrong machine."
+*   **The Safe Admin**: "I'm logged into 10 different Debian servers. Because I chose `cyclops` (server role), my prompt clearly indicates server mode, preventing me from running a reboot command on the wrong machine."
 *   **The Secret Keeper**: "I need to share my SSH config across machines but don't want it on GitHub. I store the sensitive parts in Bitwarden, and Chezmoi injects them on the fly."
 
 ## 3. Architecture
@@ -135,5 +135,11 @@ Sensitive files (like `.ssh/config`) will be stored using Chezmoi's `private_` p
 *   **Configuration Reset**: To change a machine's Role or Hostname after valid initialization, delete `~/.config/chezmoi/chezmoi.toml` and re-run the installer.
 
 ## 7. Future Considerations
-*   **Package Management**: Linking `Brewfile`, `scoop export`, and `apt bundle` lists to the dotfiles lifecycle.
+*   **Package Management Enhancement**: Currently `packages.yaml` serves as the Single Source of Truth. Future improvements could:
+    *   Generate platform-specific manifests (`Brewfile`, `scoop export`) FROM `packages.yaml` (not the reverse)
+    *   Add package version pinning for reproducibility
+    *   Implement differential updates (only install new packages)
 *   **CI/CD**: Automatic linting of shell scripts and templates via GitHub Actions.
+    *   `shellcheck` for `.sh` files
+    *   `yamllint` for `packages.yaml`
+    *   Template syntax validation via `chezmoi execute-template --dry-run`
