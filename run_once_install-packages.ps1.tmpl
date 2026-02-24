@@ -1,6 +1,7 @@
 {{ if eq .chezmoi.os "windows" }}
 # run_once_install-packages.ps1.tmpl
 # This script runs only when the hash of this file changes.
+# Sync status: Match Linux improvements (2026-02-24)
 
 Write-Host "Starting Windows Package Installation via Winget..." -ForegroundColor Cyan
 
@@ -19,8 +20,11 @@ $packages = @(
 {{ end }}
 {{/* Install role-specific packages if defined */}}
 {{ if hasKey $winData.roles .role }}
-  {{ range index $winData.roles .role }}
-    "{{ . }}",
+  {{ $rolePkgs := index $winData.roles .role }}
+  {{ if $rolePkgs }}
+    {{ range $rolePkgs }}
+      "{{ . }}",
+    {{ end }}
   {{ end }}
 {{ end }}
     $null
