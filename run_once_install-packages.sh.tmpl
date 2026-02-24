@@ -24,19 +24,32 @@ command_exists() {
 
 # Update package lists
 if command_exists apt-get; then
-    # Enable non-free repositories for Interactive roles on Debian
+    # Enable non-free repositories for Interactive roles on Debian ONLY (not Ubuntu)
     if [ "{{ .role }}" = "centaur" ] || [ "{{ .role }}" = "chimera" ] || [ "{{ .role }}" = "griffin" ]; then
-        echo "Ensuring non-free repositories are enabled (Debian check)..."
-        # Check if we are on Debian (to avoid breaking other distros like Ubuntu which use different names)
-        if [ -f /etc/debian_version ]; then
-            # Add contrib non-free non-free-firmware if not already present
-            if ! grep -q "non-free" /etc/apt/sources.list; then
-                sudo sed -i 's/main$/main contrib non-free non-free-firmware/g' /etc/apt/sources.list
+        # Check if we are on Debian (not Ubuntu which also has /etc/debian_version)
+        if [ -f /etc/debian_version ] && [ ! -f /etc/lsb-release ]; then
+            echo "Detected Debian. Ensuring non-free repositories are enabled..."
+            # Check if sudo is available without password (already pre-authorized)
+            if sudo -n true 2>/dev/null; then
+                # Add contrib non-free non-free-firmware if not already present
+                if ! grep -q "non-free" /etc/apt/sources.list 2>/dev/null; then
+                    sudo sed -i 's/main$/main contrib non-free non-free-firmware/g' /etc/apt/sources.list
+                    echo "Non-free repositories added to sources.list"
+                else
+                    echo "Non-free repositories already enabled"
+                fi
+            else
+                echo "Warning: Cannot modify sources.list (sudo requires password). Skipping non-free setup..."
             fi
         fi
     fi
     echo "Updating apt repositories..."
-    sudo apt-get update
+    # Check if sudo is available without password first
+    if sudo -n true 2>/dev/null; then
+        sudo apt-get update
+    else
+        echo "Warning: Cannot update repositories (sudo requires password). Continuing with existing package lists..."
+    fi
 fi
 
 # Pre-install Tailscale via official script if missing
@@ -75,10 +88,19 @@ fi
 echo "Installing packages: $PACKAGES"
 
 if command_exists apt-get; then
-    # Warning: unquoted variable to allow splitting. 
+    # Warning: unquoted variable to allow splitting.
     # Filter out 'starship' since it's installed via script, not apt.
     APT_PACKAGES=$(echo $PACKAGES | sed 's/starship//g')
-    sudo apt-get install -y $APT_PACKAGES
+
+    # Check if sudo is available without password (pre-authorized from install.sh)
+    if sudo -n true 2>/dev/null; then
+        echo "Installing packages (sudo already authorized)..."
+        sudo apt-get install -y $APT_PACKAGES
+    else
+        echo "Warning: sudo requires password but running in non-interactive mode."
+        echo "Package installation will be skipped. Please install manually with:"
+        echo "  sudo apt-get install -y $APT_PACKAGES"
+    fi
 else
     echo "Warning: apt-get not found. Skipping package installation via package manager."
 fi

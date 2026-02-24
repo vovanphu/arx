@@ -8,8 +8,18 @@ CHEZMOI_INSTALL_URL="${CHEZMOI_URL:-https://get.chezmoi.io}"
 BITWARDEN_CLI_URL="${BW_CLI_URL:-https://vault.bitwarden.com/download/?app=cli&platform=linux}"
 
 # --- Global Settings ---
-# Ensure .env is deleted on exit (secure cleanup)
-trap 'rm -f .env' EXIT
+# Cleanup function to be called on exit
+cleanup() {
+    # Kill sudo keepalive background process if running
+    if [ -n "${SUDO_KEEPALIVE_PID:-}" ]; then
+        kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
+    fi
+    # Secure cleanup: delete .env file
+    rm -f .env
+}
+# Ensure cleanup is called on exit
+trap cleanup EXIT INT TERM
+SUDO_KEEPALIVE_PID=""
 
 # --- Remote Bootstrap Logic ---
 if [ ! -f "install.sh" ]; then 
@@ -182,6 +192,23 @@ if [ -z "${BW_SESSION:-}" ]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# --- Pre-flight sudo check (ensure sudo is cached before non-interactive scripts) ---
+if [ "$(uname -s)" = "Linux" ] && command -v sudo &> /dev/null; then
+    echo ""
+    echo "--- Sudo Pre-authorization ---"
+    echo "Package installation requires sudo privileges. Authenticating now..."
+    if ! sudo -v; then
+        echo "Warning: Sudo authentication failed. Package installation may require manual intervention."
+    else
+        echo "Sudo authenticated successfully."
+        # Keep sudo alive in background for the duration of the script
+        # This allows chezmoi subprocesses to use sudo without password
+        ( while true; do sudo -v; sleep 50; done ) &
+        SUDO_KEEPALIVE_PID=$!
+    fi
+fi
+
 # --- Chezmoi Initialization (The "Invisible" Version) ---
 echo "--- Chezmoi Initialization ---"
 
