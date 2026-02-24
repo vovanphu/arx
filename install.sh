@@ -193,19 +193,69 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# --- Pre-flight sudo check (ensure sudo is cached before non-interactive scripts) ---
-if [ "$(uname -s)" = "Linux" ] && command -v sudo &> /dev/null; then
+# --- Pre-flight privilege escalation (ensure root access for package installation) ---
+if [ "$(uname -s)" = "Linux" ] && [ "$(id -u)" -ne 0 ]; then
     echo ""
-    echo "--- Sudo Pre-authorization ---"
-    echo "Package installation requires sudo privileges. Authenticating now..."
-    if ! sudo -v; then
-        echo "Warning: Sudo authentication failed. Package installation may require manual intervention."
+    echo "--- Privilege Escalation ---"
+    echo "Package installation requires root privileges."
+
+    # Try sudo first (most common)
+    if command -v sudo &> /dev/null; then
+        echo "Attempting sudo authentication..."
+        if sudo -v; then
+            echo "✓ Sudo authenticated successfully."
+            # Keep sudo alive in background for the duration of the script
+            # This allows chezmoi subprocesses to use sudo without password
+            ( while true; do sudo -v; sleep 50; done ) &
+            SUDO_KEEPALIVE_PID=$!
+        else
+            # Sudo failed, try to add user to sudo group with su
+            echo "✗ Sudo authentication failed (user not in sudo group or wrong password)."
+            echo ""
+            if command -v su &> /dev/null; then
+                echo "Attempting to add your user to sudo group..."
+                echo "You will be prompted for the ROOT password:"
+                if su -c "usermod -aG sudo $USER"; then
+                    echo ""
+                    echo "✓ User added to sudo group successfully!"
+                    echo "⚠ You must LOG OUT and LOG BACK IN for changes to take effect."
+                    echo ""
+                    read -p "Press Enter to continue (packages will not be installed until you re-login)..."
+                    # Continue without sudo - packages won't be installed but dotfiles will be applied
+                else
+                    echo "✗ Failed to add user to sudo group."
+                    echo ""
+                    read -p "Continue without package installation? (y/N) " -n 1 -r
+                    echo
+                    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                        exit 1
+                    fi
+                fi
+            else
+                echo "✗ Cannot escalate privileges (neither sudo nor su available)."
+                exit 1
+            fi
+        fi
     else
-        echo "Sudo authenticated successfully."
-        # Keep sudo alive in background for the duration of the script
-        # This allows chezmoi subprocesses to use sudo without password
-        ( while true; do sudo -v; sleep 50; done ) &
-        SUDO_KEEPALIVE_PID=$!
+        # No sudo installed, try to install it with su
+        echo "sudo not found on this system."
+        if command -v su &> /dev/null; then
+            echo "Attempting to install sudo..."
+            echo "You will be prompted for the ROOT password:"
+            if su -c "apt-get update && apt-get install -y sudo && usermod -aG sudo $USER"; then
+                echo ""
+                echo "✓ sudo installed and user added to sudo group!"
+                echo "⚠ You must LOG OUT and LOG BACK IN for changes to take effect."
+                echo ""
+                read -p "Press Enter to continue (packages will not be installed until you re-login)..."
+            else
+                echo "✗ Failed to install sudo."
+                exit 1
+            fi
+        else
+            echo "✗ Neither sudo nor su available. Cannot proceed."
+            exit 1
+        fi
     fi
 fi
 

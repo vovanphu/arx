@@ -22,6 +22,16 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Check if sudo is available (should be pre-authorized by install.sh)
+# If not available, skip package installation
+HAVE_SUDO=false
+if command_exists sudo && sudo -n true 2>/dev/null; then
+    HAVE_SUDO=true
+else
+    echo "Warning: sudo not available or not pre-authorized. Package installation will be skipped."
+    echo "This usually means you need to log out and log back in after adding user to sudo group."
+fi
+
 # Update package lists
 if command_exists apt-get; then
     # Enable non-free repositories for Interactive roles on Debian ONLY (not Ubuntu)
@@ -29,8 +39,7 @@ if command_exists apt-get; then
         # Check if we are on Debian (not Ubuntu which also has /etc/debian_version)
         if [ -f /etc/debian_version ] && [ ! -f /etc/lsb-release ]; then
             echo "Detected Debian. Ensuring non-free repositories are enabled..."
-            # Check if sudo is available without password (already pre-authorized)
-            if sudo -n true 2>/dev/null; then
+            if [ "$HAVE_SUDO" = true ]; then
                 # Add contrib non-free non-free-firmware if not already present
                 if ! grep -q "non-free" /etc/apt/sources.list 2>/dev/null; then
                     sudo sed -i 's/main$/main contrib non-free non-free-firmware/g' /etc/apt/sources.list
@@ -39,16 +48,15 @@ if command_exists apt-get; then
                     echo "Non-free repositories already enabled"
                 fi
             else
-                echo "Warning: Cannot modify sources.list (sudo requires password). Skipping non-free setup..."
+                echo "Skipping non-free setup (no sudo access)"
             fi
         fi
     fi
     echo "Updating apt repositories..."
-    # Check if sudo is available without password first
-    if sudo -n true 2>/dev/null; then
+    if [ "$HAVE_SUDO" = true ]; then
         sudo apt-get update
     else
-        echo "Warning: Cannot update repositories (sudo requires password). Continuing with existing package lists..."
+        echo "Skipping apt update (no sudo access)"
     fi
 fi
 
@@ -92,13 +100,13 @@ if command_exists apt-get; then
     # Filter out 'starship' since it's installed via script, not apt.
     APT_PACKAGES=$(echo $PACKAGES | sed 's/starship//g')
 
-    # Check if sudo is available without password (pre-authorized from install.sh)
-    if sudo -n true 2>/dev/null; then
-        echo "Installing packages (sudo already authorized)..."
+    # Install packages
+    if [ "$HAVE_SUDO" = true ]; then
+        echo "Installing packages via apt-get..."
         sudo apt-get install -y $APT_PACKAGES
     else
-        echo "Warning: sudo requires password but running in non-interactive mode."
-        echo "Package installation will be skipped. Please install manually with:"
+        echo "Skipping package installation (no sudo access)"
+        echo "Please install manually with:"
         echo "  sudo apt-get install -y $APT_PACKAGES"
     fi
 else
