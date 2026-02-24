@@ -1,26 +1,143 @@
-# Repository metadata and documentation
+# =============================================================================
+# Chezmoi Ignore Patterns
+# =============================================================================
+# Files/directories that should NOT be copied to $HOME during chezmoi apply
+# Patterns use Go's filepath.Match syntax (similar to .gitignore)
+
+# -----------------------------------------------------------------------------
+# Repository Metadata & Documentation
+# -----------------------------------------------------------------------------
 README.md
 DESIGN.md
+ROLES.md
+SSH_FLOW_REVIEW.md
 LICENSE
 .gitignore
 .gitattributes
+.editorconfig
 
-# Installation scripts (only needed in repo, not in $HOME)
+# -----------------------------------------------------------------------------
+# Git & Version Control
+# -----------------------------------------------------------------------------
+.git
+.git/**
+.github
+.github/**
+
+# -----------------------------------------------------------------------------
+# Installation Scripts (Only needed in repo)
+# -----------------------------------------------------------------------------
 install.sh
 install.ps1
 
-# Configuration files for the repo itself
+# -----------------------------------------------------------------------------
+# Repository Configuration Files
+# -----------------------------------------------------------------------------
 packages.yaml
 env.example
+.env
+.env.*
 arx.code-workspace
 
-# Debug and utility scripts
+# -----------------------------------------------------------------------------
+# Debug & Development Scripts
+# -----------------------------------------------------------------------------
 debug_ssh_gen.ps1
+debug_*
+test_*
+*.test.sh
+*.test.ps1
 
-# Documentation directory
+# -----------------------------------------------------------------------------
+# Documentation Directories
+# -----------------------------------------------------------------------------
 docs
 docs/**
 
-# Templates that should only be processed, not copied as-is
-# (chezmoi handles .tmpl files automatically, but listing here for clarity)
-powershell_profile.ps1.tmpl
+# -----------------------------------------------------------------------------
+# Build & Output Directories
+# -----------------------------------------------------------------------------
+dist
+dist/**
+build
+build/**
+node_modules
+node_modules/**
+
+# -----------------------------------------------------------------------------
+# Temporary & Backup Files
+# -----------------------------------------------------------------------------
+*.bak
+*.tmp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# -----------------------------------------------------------------------------
+# IDE & Editor Files
+# -----------------------------------------------------------------------------
+.vscode
+.vscode/**
+.idea
+.idea/**
+*.code-workspace
+
+# -----------------------------------------------------------------------------
+# Platform-Specific Ignores
+# -----------------------------------------------------------------------------
+{{- if eq .chezmoi.os "windows" }}
+# Ignore Linux-specific dotfiles on Windows
+.bashrc
+.bash_profile
+.zshrc
+.profile
+{{- end }}
+
+{{- if ne .chezmoi.os "windows" }}
+# Ignore Windows-specific files on Unix
+*.ps1
+*.psm1
+*.psd1
+Microsoft.PowerShell_profile.ps1
+{{- end }}
+
+# -----------------------------------------------------------------------------
+# Role-Specific Ignores
+# -----------------------------------------------------------------------------
+{{- if not .is_workstation }}
+# Server roles don't need GUI configs
+.config/vscode
+.config/obsidian
+{{- end }}
+
+{{- if .is_server }}
+# Server roles don't need desktop tools
+.local/share/fonts
+{{- end }}
+
+# -----------------------------------------------------------------------------
+# Secret Files (Defense in depth - should never be in repo anyway)
+# -----------------------------------------------------------------------------
+id_rsa
+id_rsa.pub
+id_ecdsa
+id_ecdsa.pub
+id_ed25519
+id_ed25519.pub
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+.ssh/id_*
+!.ssh/id_*.tmpl
+secrets.yaml
+credentials.json
+
+# -----------------------------------------------------------------------------
+# Chezmoi Internal Files
+# -----------------------------------------------------------------------------
+.chezmoi.toml.yaml
+.chezmoi.yaml.yaml
