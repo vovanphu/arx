@@ -16,6 +16,7 @@ Host github.com
     Hostname github.com
 
 # Role-Based Keys (auto-configured based on role capabilities)
+Host *
 {{- if .has_master_key }}
 # Master Identity (Admin workstations)
 IdentityFile ~/.ssh/id_ed25519_dotfiles_master
