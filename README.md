@@ -148,5 +148,18 @@ Then run the install script again.
 
 ## 📋 Known Issues / TODO
 
+### 🔴 High Priority
+*   [ ] **DRY Violation — Role Lists x3**: Role capabilities are defined in `roles:` (L67-140), then manually duplicated in `roles_with_*` groups (L154-166), then duplicated *again* in `has_*` checks (L171-175). Adding a new role requires updating 3 places → error-prone.
+*   [ ] **Hardcoded Role Checks in Scripts**: `run_once_install-packages.sh.tmpl` hardcodes workstation roles (`centaur || chimera || griffin`) instead of using the `.is_workstation` capability. Same pattern at lines 38, 80, 140.
+
+### 🟡 Medium Priority
+*   [ ] **SSH Key Add Logic Bug**: `dot_bashrc.tmpl` L84-85 checks `ssh-add -l` exit code to decide whether to add key. Exit 0 = "has *any* identity" (not necessarily the right one). Should check by key fingerprint instead.
+*   [ ] **PowerShell SSH Agent**: `powershell_profile.ps1.tmpl` L32 — `Get-Service ssh-agent` throws if service doesn't exist. Needs `-ErrorAction SilentlyContinue`.
+*   [ ] **Tailscale Fallback Download**: `run_once_install-packages.ps1.tmpl` L79-89 downloads and executes `.exe` without checksum verification.
 *   [ ] **Error Handling**: Package installation failures only warn, don't fail the script. Consider stricter error handling.
+
+### 🟢 Low Priority / Nits
 *   [ ] **SSH Agent**: Add wait/retry loop to ensure service is ready before adding keys.
+*   [ ] **Duplicate Comment**: `dot_bashrc.tmpl` L63-64 has two `SSH Agent Auto-Load` comments.
+*   [ ] **Redundant Git Alias**: `dot_gitconfig.tmpl` defines `st = status` which overlaps with shell alias `st = "git status"`.
+*   [ ] **Trailing Blank Lines**: `run_once_install-packages.ps1.tmpl` has 5 trailing blank lines (L118-122).
