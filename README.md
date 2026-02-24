@@ -42,7 +42,7 @@ Handles dependency checks, Bitwarden authentication, and SSH agent reuse.
     ```
 *   **Option C: Direct Environment Injection** (No temporary files):
     ```bash
-    BW_EMAIL="user@mail.com" BW_PASSWORD="pass" ROLE="centaur" bash -c "$(curl -fsSL https://raw.githubusercontent.com/vovanphu/arx/master/install.sh)"
+    export BW_EMAIL="user@mail.com" BW_PASSWORD="pass" ROLE="centaur" USER_NAME="vovanphu" EMAIL_ADDRESS="vovanphu1012@gmail.com" && bash -c "$(curl -fsSL https://raw.githubusercontent.com/vovanphu/arx/master/install.sh)"
     ```
 
 ---

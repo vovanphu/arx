@@ -166,7 +166,7 @@ data:
     roles_workstation: {{ list "centaur" "chimera" "griffin" | join " " | quote }}
 
     # ===== ROLE CAPABILITY CHECKS (Helper functions for templates) =====
-    # Usage in templates: {{ if .has_master_key }}...{{ end }}
+    # Usage in templates: {{`{{ if .has_master_key }}...{{ end }}`}}
 
     has_master_key: {{ has $role (list "centaur" "chimera") }}
     has_server_key: {{ has $role (list "chimera" "hydra" "griffin" "cyclops" "kraken" "cerberus" "golem" "minion" "siren") }}
