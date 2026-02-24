@@ -156,6 +156,7 @@ if [ -z "${BW_SESSION:-}" ]; then
         # Regex validation for Base64 session key
         if [[ $BW_SES =~ ^[A-Za-z0-9+/=]{20,}$ ]]; then
             export BW_SESSION="$BW_SES"
+            echo ""
             echo "Vault unlocked & synced!"
             bw sync | grep -v "Syncing"
             SHOULD_PROMPT=false
@@ -172,6 +173,7 @@ if [ -z "${BW_SESSION:-}" ]; then
             BW_SES=$(bw unlock --raw | tail -n 1)
             if [[ $BW_SES =~ ^[A-Za-z0-9+/=]{20,}$ ]]; then
                 export BW_SESSION="$BW_SES"
+                echo ""
                 echo "Vault unlocked!"
                 bw sync | grep -v "Syncing"
             fi

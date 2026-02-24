@@ -153,7 +153,7 @@ try {
             # Regex check: Ensure we captured a valid Base64 session key
             if ($output -match '^[A-Za-z0-9+/=]{20,}$') {
                 $env:BW_SESSION = $output.Trim()
-                Write-Host "Vault unlocked & synced!" -ForegroundColor Green
+                Write-Host "`nVault unlocked & synced!" -ForegroundColor Green
                 bw sync | Out-Null
                 $shouldPrompt = $false
             }
@@ -171,7 +171,7 @@ try {
             $output = (bw unlock --raw | Out-String).Trim() -split "`n" | Select-Object -Last 1
             if ($output -match '^[A-Za-z0-9+/=]{20,}$') {
                 $env:BW_SESSION = $output.Trim()
-                Write-Host "Vault unlocked!" -ForegroundColor Green
+                Write-Host "`nVault unlocked!" -ForegroundColor Green
                 bw sync | Out-Null
             }
         }
