@@ -16,19 +16,10 @@ is_root() {
 if command -v tailscale >/dev/null 2>&1; then
     echo "Found Tailscale. Checking status..."
 
-    # Ensure resolv.conf is writable for MagicDNS (WSL-specific fix)
-    if [ -f /etc/resolv.conf ]; then
-        # Check if file is immutable (only if lsattr is available)
-        if command -v lsattr >/dev/null 2>&1; then
-            if lsattr /etc/resolv.conf 2>/dev/null | grep -q -- '----i'; then
-                echo "Removing immutable flag from /etc/resolv.conf for MagicDNS..."
-                if is_root; then
-                    chattr -i /etc/resolv.conf 2>/dev/null || true
-                else
-                    sudo chattr -i /etc/resolv.conf 2>/dev/null || true
-                fi
-            fi
-        fi
+    # WSL-specific check: Do not mess with resolv.conf on WSL.
+    # It causes "Temporary failure in name resolution" because Tailscale and WSL's internal vSwitch conflict.
+    if grep -iq "microsoft" /proc/version 2>/dev/null || grep -iq "wsl" /proc/version 2>/dev/null; then
+        echo "WSL detected. Skipping resolv.conf modifications to prevent DNS breakage."
     fi
 
     # Check if logged in (status returns exit code 1 if not running/logged out usually)
@@ -114,6 +105,36 @@ if [ "$CURRENT_NAME" != "$TARGET_NAME" ]; then
             else
                 echo -e "127.0.1.1\t$TARGET_NAME" | sudo tee -a /etc/hosts > /dev/null
             fi
+        fi
+    fi
+
+    # WSL Specific Hostname persistence block
+    if grep -iq "microsoft" /proc/version 2>/dev/null || grep -iq "wsl" /proc/version 2>/dev/null; then
+        echo -e "\033[33mWSL Environment detected. Persisting hostname in /etc/wsl.conf...\033[0m"
+        WSL_CONF_UPDATED=false
+        # Inject network section if it doesn't exist
+        if ! grep -iq "\[network\]" /etc/wsl.conf 2>/dev/null; then
+            if is_root; then echo -e "\n[network]" >> /etc/wsl.conf; else echo -e "\n[network]" | sudo tee -a /etc/wsl.conf > /dev/null; fi
+        fi
+        
+        # Ensure hostname is set
+        if ! grep -iq "hostname[[:space:]]*=" /etc/wsl.conf 2>/dev/null; then
+            if is_root; then sed -i '/\[network\]/a hostname='"$TARGET_NAME" /etc/wsl.conf; else sudo sed -i '/\[network\]/a hostname='"$TARGET_NAME" /etc/wsl.conf; fi
+            WSL_CONF_UPDATED=true
+        else
+            # Replace existing hostname value
+            if is_root; then sed -i 's/^hostname[[:space:]]*=.*/hostname='"$TARGET_NAME"'/' /etc/wsl.conf; else sudo sed -i 's/^hostname[[:space:]]*=.*/hostname='"$TARGET_NAME"'/' /etc/wsl.conf; fi
+            WSL_CONF_UPDATED=true
+        fi
+        
+        # Disable auto-generation of hosts file if needed, so our changes above aren't wiped
+        if ! grep -iq "generateHosts[[:space:]]*=" /etc/wsl.conf 2>/dev/null; then
+            if is_root; then sed -i '/\[network\]/a generateHosts=false' /etc/wsl.conf; else sudo sed -i '/\[network\]/a generateHosts=false' /etc/wsl.conf; fi
+            WSL_CONF_UPDATED=true
+        fi
+
+        if [ "$WSL_CONF_UPDATED" = true ]; then
+            echo -e "\033[33m/etc/wsl.conf updated. You MUST restart WSL ('wsl --shutdown' in Windows) for the permanent hostname to take effect.\033[0m"
         fi
     fi
     
