@@ -29,11 +29,17 @@ if command -v tailscale >/dev/null 2>&1; then
         if [ -n "$BW_SESSION" ]; then
              TS_KEY=$(bw get password "tailscale-auth-key")
              if [ -n "$TS_KEY" ]; then
+                 TS_UP_FLAGS="--authkey $TS_KEY --hostname $TARGET_NAME --accept-routes"
+                 # WSL-specific: Disable DNS hijacking to prevent "Temporary failure in name resolution"
+                 if grep -iq "microsoft" /proc/version 2>/dev/null || grep -iq "wsl" /proc/version 2>/dev/null; then
+                     TS_UP_FLAGS="$TS_UP_FLAGS --accept-dns=false"
+                 fi
+
                  echo "Tailscale Auth Key retrieved. Authenticating as '$TARGET_NAME'..."
                  if is_root; then
-                     tailscale up --authkey "$TS_KEY" --hostname "$TARGET_NAME" --accept-routes
+                     tailscale up $TS_UP_FLAGS
                  else
-                     sudo tailscale up --authkey "$TS_KEY" --hostname "$TARGET_NAME" --accept-routes
+                     sudo tailscale up $TS_UP_FLAGS
                  fi
                  echo "Tailscale Connected Successfully!"
              else
@@ -60,8 +66,14 @@ if [ "$CURRENT_NAME" != "$TARGET_NAME" ]; then
     
     # Check if WSL -> skip manual hostname injection since we rely on `wsl.conf`
     if grep -iq "microsoft" /proc/version 2>/dev/null || grep -iq "wsl" /proc/version 2>/dev/null; then
-        echo "WSL detected. Skipping manual hostnamectl and /etc/hosts modification (handled via wsl.conf instead)."
+        echo "WSL detected. Persistence handled via wsl.conf, but updating /etc/hosts immediately to prevent sudo warnings."
+        # Update /etc/hosts but skip hostnamectl
+        UPDATE_HOSTS_ONLY=true
     else
+        UPDATE_HOSTS_ONLY=false
+    fi
+
+    if [ "$UPDATE_HOSTS_ONLY" = false ]; then
         echo "Renaming system..."
         
         if command -v hostnamectl >/dev/null 2>&1; then
@@ -70,21 +82,6 @@ if [ "$CURRENT_NAME" != "$TARGET_NAME" ]; then
                 hostnamectl set-hostname "$TARGET_NAME"
             else
                 sudo hostnamectl set-hostname "$TARGET_NAME"
-            fi
-
-            # Update /etc/hosts to prevent sudo warnings (systemd doesn't do this automatically)
-            if grep -q "127.0.1.1" /etc/hosts; then
-                if is_root; then
-                    sed -i "s/^127.0.1.1.*/127.0.1.1\t$TARGET_NAME/" /etc/hosts
-                else
-                    sudo sed -i "s/^127.0.1.1.*/127.0.1.1\t$TARGET_NAME/" /etc/hosts
-                fi
-            else
-                if is_root; then
-                    echo -e "127.0.1.1\t$TARGET_NAME" >> /etc/hosts
-                else
-                    echo -e "127.0.1.1\t$TARGET_NAME" | sudo tee -a /etc/hosts > /dev/null
-                fi
             fi
         else
             # Legacy method
@@ -95,21 +92,24 @@ if [ "$CURRENT_NAME" != "$TARGET_NAME" ]; then
                 sudo hostname "$TARGET_NAME"
                 echo "$TARGET_NAME" | sudo tee /etc/hostname > /dev/null
             fi
-            
-            # Update /etc/hosts to prevent sudo warnings
-            if grep -q "127.0.1.1" /etc/hosts; then
-                if is_root; then
-                    sed -i "s/^127.0.1.1.*/127.0.1.1\t$TARGET_NAME/" /etc/hosts
-                else
-                    sudo sed -i "s/^127.0.1.1.*/127.0.1.1\t$TARGET_NAME/" /etc/hosts
-                fi
+        fi
+    fi
+
+    # Update /etc/hosts (Shared for both WSL and Linux)
+    if grep -q "127.0.1.1" /etc/hosts; then
+        # Check if already correct to avoid redundant sudo prompts
+        if ! grep -q "127.0.1.1.*$TARGET_NAME" /etc/hosts; then
+            if is_root; then
+                sed -i "s/^127.0.1.1.*/127.0.1.1\t$TARGET_NAME/" /etc/hosts
             else
-                if is_root; then
-                    echo -e "127.0.1.1\t$TARGET_NAME" >> /etc/hosts
-                else
-                    echo -e "127.0.1.1\t$TARGET_NAME" | sudo tee -a /etc/hosts > /dev/null
-                fi
+                sudo sed -i "s/^127.0.1.1.*/127.0.1.1\t$TARGET_NAME/" /etc/hosts
             fi
+        fi
+    else
+        if is_root; then
+            echo -e "127.0.1.1\t$TARGET_NAME" >> /etc/hosts
+        else
+            echo -e "127.0.1.1\t$TARGET_NAME" | sudo tee -a /etc/hosts > /dev/null
         fi
     fi
 
@@ -138,8 +138,32 @@ if [ "$CURRENT_NAME" != "$TARGET_NAME" ]; then
             WSL_CONF_UPDATED=true
         fi
 
+        # Disable auto-generation of resolv.conf to prevent Windows from overwriting our DNS
+        if ! grep -iq "generateResolvConf[[:space:]]*=" /etc/wsl.conf 2>/dev/null; then
+            if is_root; then sed -i '/\[network\]/a generateResolvConf=false' /etc/wsl.conf; else sudo sed -i '/\[network\]/a generateResolvConf=false' /etc/wsl.conf; fi
+            WSL_CONF_UPDATED=true
+        fi
+
         if [ "$WSL_CONF_UPDATED" = true ]; then
             echo -e "\033[33m/etc/wsl.conf updated. You MUST restart WSL ('wsl --shutdown' in Windows) for the permanent hostname to take effect.\033[0m"
+        fi
+
+        # Force-create a physical resolv.conf if we disabled auto-generation
+        if grep -iq "generateResolvConf[[:space:]]*=[[:space:]]*false" /etc/wsl.conf 2>/dev/null; then
+            if [ -L /etc/resolv.conf ]; then
+                echo -e "\033[33mReplacing resolv.conf symlink with physical file...\033[0m"
+                if is_root; then
+                    rm -f /etc/resolv.conf
+                    echo "nameserver 8.8.8.8" > /etc/resolv.conf
+                    echo "nameserver 1.1.1.1" >> /etc/resolv.conf
+                    chmod 644 /etc/resolv.conf
+                else
+                    sudo rm -f /etc/resolv.conf
+                    echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null
+                    echo "nameserver 1.1.1.1" | sudo tee -a /etc/resolv.conf > /dev/null
+                    sudo chmod 644 /etc/resolv.conf
+                fi
+            fi
         fi
     fi
     
