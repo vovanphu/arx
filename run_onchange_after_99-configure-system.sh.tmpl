@@ -1,0 +1,131 @@
+{{- if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+# run_once_after_99-configure-system.sh.tmpl
+
+TARGET_NAME="{{ .hostname }}"
+CURRENT_NAME=$(hostname)
+
+echo "--- System Configuration ---"
+
+# Function to check if running as root
+is_root() {
+    [ "$(id -u)" -eq 0 ]
+}
+
+
+# 1. Tailscale Configuration (Automatic)
+if command -v tailscale >/dev/null 2>&1; then
+    echo "Found Tailscale. Checking status..."
+
+    # WSL-specific check: Do not mess with resolv.conf on WSL.
+    # It causes "Temporary failure in name resolution" because Tailscale and WSL's internal vSwitch conflict.
+    if grep -iq "microsoft" /proc/version 2>/dev/null || grep -iq "wsl" /proc/version 2>/dev/null; then
+        echo "WSL detected. Skipping resolv.conf modifications to prevent DNS breakage."
+    fi
+
+    # Check if logged in (status returns exit code 1 if not running/logged out usually)
+    if ! tailscale status >/dev/null 2>&1; then
+        echo "Tailscale is not logged in. Attempting auto-auth via Bitwarden..."
+
+        if [ -n "$BW_SESSION" ]; then
+             TS_KEY=$(bw get password "tailscale-auth-key")
+             if [ -n "$TS_KEY" ]; then
+                 TS_UP_FLAGS="--authkey $TS_KEY --hostname $TARGET_NAME --accept-routes"
+                 # WSL-specific: Disable DNS hijacking to prevent "Temporary failure in name resolution"
+                 if grep -iq "microsoft" /proc/version 2>/dev/null || grep -iq "wsl" /proc/version 2>/dev/null; then
+                     TS_UP_FLAGS="$TS_UP_FLAGS --accept-dns=false"
+                 fi
+
+                 echo "Tailscale Auth Key retrieved. Authenticating as '$TARGET_NAME'..."
+                 if is_root; then
+                     tailscale up $TS_UP_FLAGS
+                 else
+                     sudo tailscale up $TS_UP_FLAGS
+                 fi
+                 echo "Tailscale Connected Successfully!"
+             else
+                 echo "Warning: Retrieved empty Tailscale key."
+             fi
+        else
+            echo "Warning: Bitwarden session not active. Skipping Tailscale auto-login."
+        fi
+    else
+        echo "Tailscale is already logged in. Updating hostname preference..."
+        if is_root; then
+            tailscale set --hostname "$TARGET_NAME"
+        else
+            sudo tailscale set --hostname "$TARGET_NAME"
+        fi
+    fi
+fi
+
+
+# 2.1 WSL Specific Hostname persistence block (Always ensure wsl.conf is correct)
+if grep -iq "microsoft" /proc/version 2>/dev/null || grep -iq "wsl" /proc/version 2>/dev/null; then
+    echo -e "\033[33mWSL Environment detected. Ensuring /etc/wsl.conf is correct...\033[0m"
+    WSL_CONF_UPDATED=false
+    # Inject network section if it doesn't exist
+    if ! grep -iq "\[network\]" /etc/wsl.conf 2>/dev/null; then
+        if is_root; then echo -e "\n[network]" >> /etc/wsl.conf; else echo -e "\n[network]" | sudo tee -a /etc/wsl.conf > /dev/null; fi
+    fi
+    
+    # Note: We NO LONGER manually set hostname=... in wsl.conf.
+    # We let Windows handle the OS hostname while using $TARGET_NAME purely for Tailscale.
+    
+    # Enable auto-generation of hosts file (Default WSL behavior)
+    if ! grep -iq "generateHosts[[:space:]]*=" /etc/wsl.conf 2>/dev/null; then
+        if is_root; then sed -i '/\[network\]/a generateHosts=true' /etc/wsl.conf; else echo -e "generateHosts=true" | sudo tee -a /etc/wsl.conf > /dev/null; fi
+        WSL_CONF_UPDATED=true
+    else
+        # Ensure it's set to true
+        if is_root; then sed -i 's/^generateHosts[[:space:]]*=.*/generateHosts=true/' /etc/wsl.conf; else sudo sed -i 's/^generateHosts[[:space:]]*=.*/generateHosts=true/' /etc/wsl.conf; fi
+        WSL_CONF_UPDATED=true
+    fi
+
+    # Enable auto-generation of resolv.conf (Default WSL behavior)
+    if ! grep -iq "generateResolvConf[[:space:]]*=" /etc/wsl.conf 2>/dev/null; then
+        if is_root; then sed -i '/\[network\]/a generateResolvConf=true' /etc/wsl.conf; else echo -e "generateResolvConf=true" | sudo tee -a /etc/wsl.conf > /dev/null; fi
+        WSL_CONF_UPDATED=true
+    else
+        # Ensure it's set to true
+        if is_root; then sed -i 's/^generateResolvConf[[:space:]]*=.*/generateResolvConf=true/' /etc/wsl.conf; else sudo sed -i 's/^generateResolvConf[[:space:]]*=.*/generateResolvConf=true/' /etc/wsl.conf; fi
+        WSL_CONF_UPDATED=true
+    fi
+
+    if [ "$WSL_CONF_UPDATED" = true ]; then
+        echo -e "\033[33m/etc/wsl.conf updated. You MUST restart WSL ('wsl --shutdown' in Windows) for changes to take effect.\033[0m"
+    fi
+fi
+
+# 3. SSH Server Configuration (auto-start for all Linux systems)
+if command -v sshd >/dev/null 2>&1; then
+    echo "Checking SSH server status..."
+
+    # Check if SSH service is running
+    if ! systemctl is-active --quiet ssh 2>/dev/null && ! systemctl is-active --quiet sshd 2>/dev/null; then
+        echo "SSH server is not running. Starting service..."
+        SSH_STARTED=false
+        if is_root; then
+            if systemctl start ssh 2>/dev/null || systemctl start sshd 2>/dev/null || service ssh start 2>/dev/null; then
+                SSH_STARTED=true
+            fi
+            systemctl enable ssh 2>/dev/null || systemctl enable sshd 2>/dev/null || true
+        else
+            if sudo systemctl start ssh 2>/dev/null || sudo systemctl start sshd 2>/dev/null || sudo service ssh start 2>/dev/null; then
+                SSH_STARTED=true
+            fi
+            sudo systemctl enable ssh 2>/dev/null || sudo systemctl enable sshd 2>/dev/null || true
+        fi
+
+        if [ "$SSH_STARTED" = true ]; then
+            echo -e "\033[32mSSH server started and enabled.\033[0m"
+        else
+            echo -e "\033[33mWarning: Failed to start SSH server. Please check service status manually.\033[0m"
+        fi
+    else
+        echo -e "\033[32mSSH server is already running.\033[0m"
+    fi
+else
+    echo "Note: SSH server (sshd) not found. Run 'sudo apt install openssh-server' if needed."
+fi
+{{ end }}

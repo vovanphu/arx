@@ -35,12 +35,11 @@
 {{ if env "HOSTNAME" }}
 {{   $hostname_selection = env "HOSTNAME" }}
 {{ else }}
-{{   $hostname_selection = promptStringOnce . "hostname" "Enter Hostname" "custom" }}
-{{ end }}
-
-{{/* If custom, ask for custom hostname (fallback for interactive use) */}}
-{{ if eq $hostname_selection "custom" }}
-{{   $hostname_selection = promptString "Enter Custom Hostname" }}
+{{   $hostname_default := .chezmoi.hostname }}
+{{   if $is_wsl }}
+{{     $hostname_default = printf "%s-wsl" .chezmoi.hostname }}
+{{   end }}
+{{   $hostname_selection = promptStringOnce . "hostname" "Enter Tailscale Hostname (for node registration)" $hostname_default }}
 {{ end }}
 
 

@@ -72,23 +72,9 @@ if ($tailscaleBin -and $status) {
     Write-Warning "Tailscale binary not found in PATH or standard locations. Skipping auto-config."
 }
 
-# 2. OS Hostname Configuration (Prompt)
-if ($currentName -ne $targetName) {
-    Write-Host "Current System Name: $currentName" -ForegroundColor Yellow
-    Write-Host "Target Mythos Name:  $targetName" -ForegroundColor Green
-    
-    Write-Host "Auto-correcting system name..." -ForegroundColor Cyan
-    
-    try {
-        Rename-Computer -NewName $targetName -Force -ErrorAction Stop
-        Write-Host "SUCCESS: Hostname changed to '$targetName'." -ForegroundColor Green
-        Write-Host "IMPORTANT: You must RESTART your computer for this to take effect." -ForegroundColor Red
-    } catch {
-        Write-Error "Failed to rename computer. Please ensure you are running this script as ADMINISTRATOR."
-    }
-} else {
-    Write-Host "System Hostname is already synced ($targetName)." -ForegroundColor Green
-}
+# 2. OS Hostname Configuration (De-coupled)
+# We NO LONGER rename the computer host. We preserve $targetName purely for Tailscale node registration.
+Write-Host "Note: OS Hostname renaming is disabled. Windows handles the host name, while Tailscale uses '$targetName'." -ForegroundColor Cyan
 
 # 3. OpenSSH Default Shell Configuration
 Write-Host "Configuring OpenSSH Default Shell to PowerShell..." -ForegroundColor Cyan
