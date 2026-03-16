@@ -172,6 +172,7 @@ data:
     receives_ssh: {{ has $role (list "chimera" "hydra" "griffin" "cyclops" "kraken" "cerberus" "golem" "minion" "siren") }}
     is_server: {{ has $role (list "hydra" "cyclops" "kraken" "cerberus" "golem" "minion" "siren") }}
     is_workstation: {{ has $role (list "centaur" "chimera" "griffin") }}
+    is_virtualization_host: {{ has $role (list "hydra" "griffin") }}
 
     # Aliases
     commonAliases:

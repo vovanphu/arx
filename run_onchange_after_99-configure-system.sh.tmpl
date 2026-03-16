@@ -128,4 +128,61 @@ if command -v sshd >/dev/null 2>&1; then
 else
     echo "Note: SSH server (sshd) not found. Run 'sudo apt install openssh-server' if needed."
 fi
+
+# 4. Virtualization Host Optimizations (ZRAM & KSM)
+{{ if .is_virtualization_host }}
+echo "--- Virtualization Host Optimizations ---"
+if is_root; then
+    SUDO_CMD=""
+else
+    SUDO_CMD="sudo"
+fi
+
+# Configure ZRAM
+if command -v zramctl >/dev/null 2>&1; then
+    echo "Found zram-tools. Configuring ZRAM for Hypervisor (zstd, 50%)..."
+    # Backup existing config
+    if [ -f /etc/default/zramswap ]; then
+        $SUDO_CMD cp /etc/default/zramswap /etc/default/zramswap.bak
+    fi
+    
+    # Write optimized configuration
+    cat << 'EOF' | $SUDO_CMD tee /etc/default/zramswap > /dev/null
+# ZRAM Configuration specifically formulated for Virtualization Hosts (KVM/K8s)
+# Compression algorithm zstd provides high compression ratio (~3:1 for text/json/VM memory)
+ALGO=zstd
+
+# Specify the percentage of RAM that can be compressed.
+# Since we are aggressively running VMs, 50% allows us to claw back a lot of space.
+PERCENT=50
+EOF
+    
+    echo "Restarting ZRAM service to apply changes..."
+    if $SUDO_CMD systemctl restart zramswap; then
+        echo -e "\033[32mZRAM configured and running.\033[0m"
+    else
+        echo -e "\033[33mWarning: Failed to restart ZRAM service.\033[0m"
+    fi
+else
+    echo "zram-tools not found. Skipping ZRAM configuration."
+fi
+
+# Enable KSM (Kernel Samepage Merging)
+if systemctl list-unit-files | grep -q "ksmtuned.service"; then
+    echo "Found ksmtuned. Enabling Kernel Samepage Merging..."
+    if ! systemctl is-active --quiet ksmtuned 2>/dev/null; then
+        $SUDO_CMD systemctl enable ksmtuned > /dev/null 2>&1
+        if $SUDO_CMD systemctl start ksmtuned; then
+            echo -e "\033[32mksmtuned started successfully.\033[0m"
+        else
+            echo -e "\033[33mWarning: Failed to start ksmtuned.\033[0m"
+        fi
+    else
+        echo -e "\033[32mksmtuned is already running.\033[0m"
+    fi
+else
+    echo "ksmtuned service not found. Skipping KSM configuration."
+fi
+{{ end }}
+
 {{ end }}

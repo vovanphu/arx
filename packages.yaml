@@ -127,6 +127,8 @@ linux:
       - "htop"
       - "ncdu"
       - "neofetch"
+      - "zram-tools"
+      - "ksmtuned"
     griffin: # formerly MobileLab (Debian + KVM)
       - "openssh-server"
       - "qemu-kvm"
@@ -136,6 +138,8 @@ linux:
       - "virt-manager"
       - "htop"
       - "ncdu"
+      - "zram-tools"
+      - "ksmtuned"
     cyclops: # General Purpose Server
       - "openssh-server"
       - "nginx"
