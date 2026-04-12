@@ -1,6 +1,6 @@
 {{- if eq .chezmoi.os "linux" -}}
 #!/bin/bash
-# run_once_after_99-configure-system.sh.tmpl
+# run_onchange_99-configure-system.sh.tmpl (Updated: 2026-03-04 01:28)
 
 TARGET_NAME="{{ .hostname }}"
 CURRENT_NAME=$(hostname)
@@ -71,6 +71,11 @@ if grep -iq "microsoft" /proc/version 2>/dev/null || grep -iq "wsl" /proc/versio
     
     # Note: We NO LONGER manually set hostname=... in wsl.conf.
     # We let Windows handle the OS hostname while using $TARGET_NAME purely for Tailscale.
+    if grep -iq "hostname[[:space:]]*=" /etc/wsl.conf 2>/dev/null; then
+        echo "Removing manual hostname entry from /etc/wsl.conf..."
+        if is_root; then sed -i '/^hostname[[:space:]]*=/d' /etc/wsl.conf; else sudo sed -i '/^hostname[[:space:]]*=/d' /etc/wsl.conf; fi
+        WSL_CONF_UPDATED=true
+    fi
     
     # Enable auto-generation of hosts file (Default WSL behavior)
     if ! grep -iq "generateHosts[[:space:]]*=" /etc/wsl.conf 2>/dev/null; then
@@ -90,6 +95,21 @@ if grep -iq "microsoft" /proc/version 2>/dev/null || grep -iq "wsl" /proc/versio
         # Ensure it's set to true
         if is_root; then sed -i 's/^generateResolvConf[[:space:]]*=.*/generateResolvConf=true/' /etc/wsl.conf; else sudo sed -i 's/^generateResolvConf[[:space:]]*=.*/generateResolvConf=true/' /etc/wsl.conf; fi
         WSL_CONF_UPDATED=true
+    fi
+
+    # Restore native resolv.conf symlink if auto-generation is enabled
+    if grep -iq "generateResolvConf[[:space:]]*=[[:space:]]*true" /etc/wsl.conf 2>/dev/null; then
+        if [ ! -L /etc/resolv.conf ] || [ ! -e /etc/resolv.conf ]; then
+            echo "Removing custom /etc/resolv.conf to allow WSL auto-generation..."
+            if is_root; then
+                chattr -i /etc/resolv.conf 2>/dev/null
+                rm -f /etc/resolv.conf
+            else
+                sudo chattr -i /etc/resolv.conf 2>/dev/null
+                sudo rm -f /etc/resolv.conf
+            fi
+            WSL_CONF_UPDATED=true
+        fi
     fi
 
     if [ "$WSL_CONF_UPDATED" = true ]; then
