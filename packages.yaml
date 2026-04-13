@@ -103,67 +103,386 @@ windows:
       - "Microsoft.OpenSSH.Beta"
 
 linux:
-  common:
-    - "git"
-    - "curl"
-  extras: # Installed if NOT 'server' role
-    - "neovim"
-    - "ripgrep"
-    - "fzf"
-    - "zoxide"
-    - "starship"
-  roles:
-    centaur: # Formerly Commander
-      - "ansible"
-      # - "kubectl"
-    chimera: # Formerly Workstation
-      - "openssh-server"
-      - "build-essential"
-      - "g++"
-      - "gcc"
-      - "make"
-    hydra: # Proxmox Host (Bare Metal) - Minimal, PVE handles the rest
-      - "openssh-server"
-      - "htop"
-      - "ncdu"
-      - "neofetch"
-      - "zram-tools"
-      - "ksmtuned"
-    griffin: # formerly MobileLab (Debian + KVM)
-      - "openssh-server"
-      - "qemu-kvm"
-      - "libvirt-daemon-system"
-      - "libvirt-clients"
-      - "bridge-utils"
-      - "virt-manager"
-      - "htop"
-      - "ncdu"
-      - "zram-tools"
-      - "ksmtuned"
-    cyclops: # General Purpose Server
-      - "openssh-server"
-      - "nginx"
-      - "net-tools"
-    cerberus: # Bastion/Gateway
-      - "openssh-server"
-      - "fail2ban"
-      - "ufw"
-      - "wireguard-tools"
-    golem: # Database/Stateful
-      - "openssh-server"
-      - "postgresql-client"
-      - "redis-tools"
-    minion: # Worker/Compute
-      - "openssh-server"
-      - "docker.io"
-      - "htop"
-    siren: # Web/Proxy
-      - "openssh-server"
-      - "nginx"
-      - "certbot"
-      - "python3-certbot-nginx"
-    kraken: # Ceph/Storage Node
-      - "openssh-server"
-      - "ceph-common"
-      - "xfsprogs"
-      - "smartmontools"
+  # Distribution detection and package manager abstraction
+  distributions:
+    debian_family:
+      - "debian"
+      - "ubuntu"
+      - "linuxmint"
+      - "pop"
+      - "raspbian"
+      - "kali"
+
+    fedora_family:
+      - "fedora"
+      - "centos"
+      - "rhel"
+      - "rocky"
+
+  # Package manager abstraction
+  package_managers:
+    apt:
+      install: "apt-get install -y"
+      remove: "apt-get remove -y"
+      update: "apt-get update"
+      cache: "apt-get update"
+      package_file: "deb"
+      config_dir: "/etc/apt"
+      family: "debian"
+
+    dnf:
+      install: "dnf install -y"
+      remove: "dnf remove -y"
+      update: "dnf makecache --refresh"
+      cache: "dnf makecache --refresh"
+      package_file: "rpm"
+      config_dir: "/etc/dnf"
+      family: "fedora"
+
+  # Package name mappings
+  package_mappings:
+    # Debian family → Fedora family
+    libvirt-clients:
+      debian: "libvirt-clients"
+      ubuntu: "libvirt-clients"
+      fedora: "libvirt-client"
+      default: "libvirt-client"
+
+    libvirt-daemon-system:
+      debian: "libvirt-daemon-system"
+      ubuntu: "libvirt-daemon-system"
+      fedora: "libvirt-daemon-system"
+      default: "libvirt-daemon-system"
+
+    qemu-kvm:
+      debian: "qemu-kvm"
+      ubuntu: "qemu-kvm"
+      fedora: "qemu-kvm"
+      default: "qemu-kvm"
+
+    zram-tools:
+      debian: "zram-tools"
+      ubuntu: "zram-tools"
+      fedora: "zram-generator-defaults"
+      default: "zram-generator-defaults"
+
+    ksmtuned:
+      debian: "ksmtuned"
+      ubuntu: "ksmtuned"
+      fedora: "tuned"
+      default: "tuned"
+
+    # Common packages (same across distributions)
+    openssh-server:
+      debian: "openssh-server"
+      ubuntu: "openssh-server"
+      fedora: "openssh-server"
+      default: "openssh-server"
+
+    htop:
+      debian: "htop"
+      ubuntu: "htop"
+      fedora: "htop"
+      default: "htop"
+
+    ncdu:
+      debian: "ncdu"
+      ubuntu: "ncdu"
+      fedora: "ncdu"
+      default: "ncdu"
+
+    bridge-utils:
+      debian: "bridge-utils"
+      ubuntu: "bridge-utils"
+      fedora: "bridge-utils"
+      default: "bridge-utils"
+
+    virt-manager:
+      debian: "virt-manager"
+      ubuntu: "virt-manager"
+      fedora: "virt-manager"
+      default: "virt-manager"
+
+    starship:
+      debian: "starship"
+      ubuntu: "starship"
+      fedora: "starship"
+      default: "starship"
+
+    neovim:
+      debian: "neovim"
+      ubuntu: "neovim"
+      fedora: "neovim"
+      default: "neovim"
+
+    ripgrep:
+      debian: "ripgrep"
+      ubuntu: "ripgrep"
+      fedora: "ripgrep"
+      default: "ripgrep"
+
+    fzf:
+      debian: "fzf"
+      ubuntu: "fzf"
+      fedora: "fzf"
+      default: "fzf"
+
+    zoxide:
+      debian: "zoxide"
+      ubuntu: "zoxide"
+      fedora: "zoxide"
+      default: "zoxide"
+
+  # Service name mappings
+  service_mappings:
+    # Debian family → Fedora family
+    zramswap:
+      debian: "zramswap"
+      ubuntu: "zramswap"
+      fedora: "systemd-zram-setup@zram0"
+      default: "systemd-zram-setup@zram0"
+
+    ksmtuned:
+      debian: "ksmtuned"
+      ubuntu: "ksmtuned"
+      fedora: "tuned"
+      default: "tuned"
+
+    ssh:
+      debian: "ssh"
+      ubuntu: "ssh"
+      fedora: "sshd"
+      default: "sshd"
+
+    ssh.service:
+      debian: "ssh.service"
+      ubuntu: "ssh.service"
+      fedora: "sshd.service"
+      default: "sshd.service"
+
+  # Configuration templates
+  config_templates:
+    # Repository configuration
+    repo_config:
+      debian:
+        template: |
+          deb [arch=amd64] https://deb.debian.org/debian {{ .release }} main contrib non-free
+          deb [arch=amd64] https://deb.debian.org/debian {{ .release }}-updates main contrib non-free
+          deb [arch=amd64] https://deb.debian.org/debian {{ .release }}-backports main contrib non-free
+        file: "/etc/apt/sources.list"
+        command: "apt-get update"
+
+      ubuntu:
+        template: |
+          deb [arch=amd64] http://archive.ubuntu.com/ubuntu {{ .release }} main restricted universe multiverse
+          deb [arch=amd64] http://archive.ubuntu.com/ubuntu {{ .release }}-updates main restricted universe multiverse
+          deb [arch=amd64] http://archive.ubuntu.com/ubuntu {{ .release }}-backports main restricted universe multiverse
+          deb [arch=amd64] http://archive.ubuntu.com/ubuntu {{ .release }}-security main restricted universe multiverse
+        file: "/etc/apt/sources.list"
+        command: "apt-get update"
+
+      fedora:
+        template: |
+          fedora {{ .release }} - $basearch - BaseOS
+          fedora {{ .release }} - $basearch - AppStream
+          fedora {{ .release }} - $basearch - Fedora
+        file: "/etc/yum.repos.d/fedora.repo"
+        command: "dnf makecache --refresh"
+
+    # ZRAM configuration
+    zram_config:
+      debian:
+        template: |
+          # ZRAM Configuration
+          ALGO=zstd
+          PERCENT=50
+        file: "/etc/default/zramswap"
+        service: "zramswap"
+
+      ubuntu:
+        template: |
+          # ZRAM Configuration
+          ALGO=zstd
+          PERCENT=50
+        file: "/etc/default/zramswap"
+        service: "zramswap"
+
+      fedora:
+        template: |
+          # ZRAM Configuration
+          [zram0]
+          algorithm = zstd
+          max-compression = true
+          memory-limit = 50%
+        file: "/etc/zram-generator.conf"
+        service: "systemd-zram-setup@zram0"
+
+    # SSH configuration
+    ssh_config:
+      debian:
+        template: |
+          # SSH Configuration
+          Port 22
+          Protocol 2
+          HostKey /etc/ssh/ssh_host_rsa_key
+          HostKey /etc/ssh/ssh_host_ecdsa_key
+          HostKey /etc/ssh/ssh_host_ed25519_key
+        file: "/etc/ssh/sshd_config"
+        service: "ssh"
+
+      ubuntu:
+        template: |
+          # SSH Configuration
+          Port 22
+          Protocol 2
+          HostKey /etc/ssh/ssh_host_rsa_key
+          HostKey /etc/ssh/ssh_host_ecdsa_key
+          HostKey /etc/ssh/ssh_host_ed25519_key
+        file: "/etc/ssh/sshd_config"
+        service: "ssh"
+
+      fedora:
+        template: |
+          # SSH Configuration
+          Port 22
+          Protocol 2
+          HostKey /etc/ssh/ssh_host_rsa_key
+          HostKey /etc/ssh/ssh_host_ecdsa_key
+          HostKey /etc/ssh/ssh_host_ed25519_key
+        file: "/etc/ssh/sshd_config"
+        service: "sshd"
+
+  # Debian/Ubuntu packages (apt)
+  debian:
+    common:
+      - "git"
+      - "curl"
+    extras: # Installed if NOT 'server' role
+      - "neovim"
+      - "ripgrep"
+      - "fzf"
+      - "zoxide"
+      - "starship"
+    roles:
+      centaur: # Formerly Commander
+        - "ansible"
+        # - "kubectl"
+      chimera: # Formerly Workstation
+        - "openssh-server"
+        - "build-essential"
+        - "g++"
+        - "gcc"
+        - "make"
+      hydra: # Proxmox Host (Bare Metal) - Minimal, PVE handles the rest
+        - "openssh-server"
+        - "htop"
+        - "ncdu"
+        - "neofetch"
+        - "zram-tools"
+        - "ksmtuned"
+      griffin: # formerly MobileLab (Debian + KVM)
+        - "openssh-server"
+        - "qemu-kvm"
+        - "libvirt-daemon-system"
+        - "libvirt-clients"
+        - "bridge-utils"
+        - "virt-manager"
+        - "htop"
+        - "ncdu"
+        - "zram-tools"
+        - "ksmtuned"
+      cyclops: # General Purpose Server
+        - "openssh-server"
+        - "nginx"
+        - "net-tools"
+      cerberus: # Bastion/Gateway
+        - "openssh-server"
+        - "fail2ban"
+        - "ufw"
+        - "wireguard-tools"
+      golem: # Database/Stateful
+        - "openssh-server"
+        - "postgresql-client"
+        - "redis-tools"
+      minion: # Worker/Compute
+        - "openssh-server"
+        - "docker.io"
+        - "htop"
+      siren: # Web/Proxy
+        - "openssh-server"
+        - "nginx"
+        - "certbot"
+        - "python3-certbot-nginx"
+      kraken: # Ceph/Storage Node
+        - "openssh-server"
+        - "ceph-common"
+        - "xfsprogs"
+        - "smartmontools"
+
+  # Fedora packages (dnf)
+  fedora:
+    common:
+      - "git"
+      - "curl"
+    extras: # Installed if NOT 'server' role
+      - "neovim"
+      - "ripgrep"
+      - "fzf"
+      - "zoxide"
+      - "starship"
+    roles:
+      centaur: # Formerly Commander
+        - "ansible"
+        # - "kubectl"
+      chimera: # Formerly Workstation
+        - "openssh-server"
+        - "@Development Tools"
+        - "gcc-c++"
+        - "gcc"
+        - "make"
+      hydra: # Proxmox Host (Bare Metal) - Minimal, PVE handles the rest
+        - "openssh-server"
+        - "htop"
+        - "ncdu"
+        - "neofetch"
+        - "zram-generator-defaults"
+        - "tuned"
+      griffin: # MobileLab (Fedora + KVM)
+        - "openssh-server"
+        - "qemu-kvm"
+        - "libvirt-daemon-system"
+        - "libvirt-client"
+        - "bridge-utils"
+        - "virt-manager"
+        - "htop"
+        - "ncdu"
+        - "zram-generator-defaults"
+        - "tuned"
+      cyclops: # General Purpose Server
+        - "openssh-server"
+        - "nginx"
+        - "net-tools"
+      cerberus: # Bastion/Gateway
+        - "openssh-server"
+        - "fail2ban"
+        - "firewalld"
+        - "wireguard-tools"
+      golem: # Database/Stateful
+        - "openssh-server"
+        - "postgresql"
+        - "redis"
+      minion: # Worker/Compute
+        - "openssh-server"
+        - "docker"
+        - "docker-compose"
+        - "htop"
+      siren: # Web/Proxy
+        - "openssh-server"
+        - "nginx"
+        - "certbot"
+        - "python3-certbot-nginx"
+      kraken: # Ceph/Storage Node
+        - "openssh-server"
+        - "ceph"
+        - "xfsprogs"
+        - "smartmontools"

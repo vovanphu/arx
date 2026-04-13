@@ -12,6 +12,44 @@ is_root() {
     [ "$(id -u)" -eq 0 ]
 }
 
+# Function to validate service status
+validate_service_status() {
+    local service="$1"
+    local service_manager="$2"
+
+    if [ "$service_manager" = "systemd" ]; then
+        if ! systemctl is-active --quiet "$service"; then
+            echo "Error: Service $service is not running"
+            return 1
+        fi
+    elif [ "$service_manager" = "sysvinit" ]; then
+        if ! systemctl is-active --quiet "$service"; then
+            echo "Error: Service $service is not running"
+            return 1
+        fi
+    fi
+    return 0
+}
+
+# Function to validate package installation
+validate_package_installation() {
+    local package="$1"
+    local package_manager="$2"
+
+    if [ "$package_manager" = "apt" ]; then
+        if ! dpkg -l "$package" >/dev/null 2>&1; then
+            echo "Error: Package $package failed to install via apt"
+            return 1
+        fi
+    elif [ "$PKG_MGR" = "dnf" ]; then
+        if ! rpm -q "$package" >/dev/null 2>&1; then
+            echo "Error: Package $package failed to install via dnf"
+            return 1
+        fi
+    fi
+    return 0
+}
+
 
 # 1. Tailscale Configuration (Automatic)
 if command -v tailscale >/dev/null 2>&1; then
@@ -160,14 +198,38 @@ fi
 
 # Configure ZRAM
 if command -v zramctl >/dev/null 2>&1; then
-    echo "Found zram-tools. Configuring ZRAM for Hypervisor (zstd, 50%)..."
-    # Backup existing config
-    if [ -f /etc/default/zramswap ]; then
-        $SUDO_CMD cp /etc/default/zramswap /etc/default/zramswap.bak
-    fi
-    
-    # Write optimized configuration
-    cat << 'EOF' | $SUDO_CMD tee /etc/default/zramswap > /dev/null
+    if [ -f /etc/zram-generator.conf ]; then
+        echo "Found zram-generator. Configuring ZRAM for Hypervisor (zstd, 50%)..."
+        # Backup existing config
+        if [ -f /etc/zram-generator.conf ]; then
+            $SUDO_CMD cp /etc/zram-generator.conf /etc/zram-generator.conf.bak
+        fi
+
+        # Write optimized configuration
+        cat << 'EOF' | $SUDO_CMD tee /etc/zram-generator.conf > /dev/null
+# ZRAM Configuration specifically formulated for Virtualization Hosts (KVM/K8s)
+# Compression algorithm zstd provides high compression ratio (~3:1 for text/json/VM memory)
+[zram0]
+algorithm = zstd
+max-compression = true
+memory-limit = 50%
+EOF
+
+        echo "Restarting ZRAM service to apply changes..."
+        if $SUDO_CMD systemctl restart systemd-zram-setup@zram0; then
+            echo -e "\033[32mZRAM configured and running.\033[0m"
+        else
+            echo -e "\033[33mWarning: Failed to restart ZRAM service.\033[0m"
+        fi
+    else
+        echo "Found zram-tools. Configuring ZRAM for Hypervisor (zstd, 50%)..."
+        # Backup existing config
+        if [ -f /etc/default/zramswap ]; then
+            $SUDO_CMD cp /etc/default/zramswap /etc/default/zramswap.bak
+        fi
+
+        # Write optimized configuration
+        cat << 'EOF' | $SUDO_CMD tee /etc/default/zramswap > /dev/null
 # ZRAM Configuration specifically formulated for Virtualization Hosts (KVM/K8s)
 # Compression algorithm zstd provides high compression ratio (~3:1 for text/json/VM memory)
 ALGO=zstd
@@ -176,15 +238,14 @@ ALGO=zstd
 # Since we are aggressively running VMs, 50% allows us to claw back a lot of space.
 PERCENT=50
 EOF
-    
-    echo "Restarting ZRAM service to apply changes..."
-    if $SUDO_CMD systemctl restart zramswap; then
-        echo -e "\033[32mZRAM configured and running.\033[0m"
-    else
-        echo -e "\033[33mWarning: Failed to restart ZRAM service.\033[0m"
+
+        echo "Restarting ZRAM service to apply changes..."
+        if $SUDO_CMD systemctl restart zramswap; then
+            echo -e "\033[32mZRAM configured and running.\033[0m"
+        else
+            echo -e "\033[33mWarning: Failed to restart ZRAM service.\033[0m"
+        fi
     fi
-else
-    echo "zram-tools not found. Skipping ZRAM configuration."
 fi
 
 # Enable KSM (Kernel Samepage Merging)
