@@ -444,6 +444,33 @@ fi
 {{ end }}
 
 {{ if and (eq .chezmoi.os "linux") .is_workstation }}
+# Google Chrome -- Fedora family only (add official Google repo, then install)
+if grep -qiE "^ID(_LIKE)?=.*fedora" /etc/os-release 2>/dev/null; then
+    echo "--- Google Chrome ---"
+    if ! command -v google-chrome-stable >/dev/null 2>&1; then
+        CHROME_REPO="/etc/yum.repos.d/google-chrome.repo"
+        if [ ! -f "$CHROME_REPO" ]; then
+            echo "Adding Google Chrome repo..."
+            cat << 'EOF' | $SUDO_CMD tee "$CHROME_REPO" > /dev/null
+[google-chrome]
+name=google-chrome
+baseurl=https://dl.google.com/linux/chrome/rpm/stable/x86_64
+enabled=1
+gpgcheck=1
+gpgkey=https://dl.google.com/linux/linux_signing_key.pub
+EOF
+        fi
+        echo "Installing Google Chrome..."
+        if $SUDO_CMD dnf install -y google-chrome-stable; then
+            echo "Google Chrome installed."
+        else
+            echo "Warning: Failed to install Google Chrome."
+        fi
+    else
+        echo "Google Chrome already installed."
+    fi
+fi
+
 # Vietnamese input method (fcitx5-unikey) -- Fedora family only
 if grep -qiE "^ID(_LIKE)?=.*fedora" /etc/os-release 2>/dev/null; then
     if command -v fcitx5 >/dev/null 2>&1; then
