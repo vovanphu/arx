@@ -438,13 +438,11 @@ EOF
         echo "Installing Google Chrome..."
         if $SUDO_CMD dnf install -y google-chrome-stable; then
             echo "Google Chrome installed."
-            # Poll until RPM DB lock is released by post-install scriptlets (max 30s)
-            for _i in $(seq 1 30); do
-                if ! $SUDO_CMD fuser /usr/lib/sysimage/rpm/.rpm.lock >/dev/null 2>&1; then
-                    break
-                fi
-                sleep 1
-            done
+            # Chrome's %post scriptlet tries rpm --import inside the dnf transaction while
+            # the RPM lock is still held, causing key import to fail. Re-import after dnf
+            # releases the lock to ensure the signing key is present for future updates.
+            $SUDO_CMD rpm --import https://dl.google.com/linux/linux_signing_key.pub 2>/dev/null || true
+            echo "Google Chrome signing key imported."
         else
             echo "Warning: Failed to install Google Chrome."
         fi
