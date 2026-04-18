@@ -198,15 +198,10 @@ fi
 
 # Configure ZRAM
 if command -v zramctl >/dev/null 2>&1; then
-    if [ -f /etc/zram-generator.conf ]; then
-        echo "Found zram-generator. Configuring ZRAM for Hypervisor (zstd, 50%)..."
-        # Backup existing config
-        if [ -f /etc/zram-generator.conf ]; then
-            $SUDO_CMD cp /etc/zram-generator.conf /etc/zram-generator.conf.bak
-        fi
-
-        # Write optimized configuration
-        cat << 'EOF' | $SUDO_CMD tee /etc/zram-generator.conf > /dev/null
+    if command -v zramctl >/dev/null 2>&1 && grep -qiE "^ID(_LIKE)?=.*fedora" /etc/os-release 2>/dev/null; then
+        echo "Configuring ZRAM for Hypervisor (Fedora, zstd, 100%)..."
+        $SUDO_CMD mkdir -p /etc/systemd/zram-generator.conf.d
+        cat << 'EOF' | $SUDO_CMD tee /etc/systemd/zram-generator.conf.d/zram0.conf > /dev/null
 # ZRAM Configuration specifically formulated for Virtualization Hosts (KVM/K8s)
 # Compression algorithm zstd provides high compression ratio (~3:1 for text/json/VM memory)
 [zram0]
@@ -214,7 +209,6 @@ algorithm = zstd
 max-compression = true
 memory-limit = 100%
 EOF
-
         echo "Restarting ZRAM service to apply changes..."
         if $SUDO_CMD systemctl restart systemd-zram-setup@zram0; then
             echo -e "\033[32mZRAM configured and running.\033[0m"
