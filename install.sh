@@ -188,10 +188,7 @@ if [ -z "${BW_SESSION:-}" ]; then
     SHOULD_PROMPT=true
     if [ -n "$PASSWORD" ]; then
         echo "BW_PASSWORD detected. Attempting automated unlock..."
-        BW_STATUS_RAW=$(bw status 2>/dev/null)
-        BW_STATUS=$(echo "$BW_STATUS_RAW" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
-        echo "Debug: bw status raw: $BW_STATUS_RAW"
-        echo "Debug: bw status parsed: $BW_STATUS"
+        BW_STATUS=$(bw status 2>/dev/null | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
         if [ "$BW_STATUS" = "unauthenticated" ]; then
             export BW_PASSWORD="$PASSWORD"
             if [ -n "$EMAIL" ]; then
@@ -210,13 +207,10 @@ if [ -z "${BW_SESSION:-}" ]; then
         if [ -n "${BW_PASSWORD:-}" ] || [ "$BW_STATUS" != "unauthenticated" ]; then
             export BW_PASSWORD="$PASSWORD"
             # Capture both stdout and stderr for diagnostics
-            echo "Debug: BW_PASSWORD set=${BW_PASSWORD:+yes}"
-            echo "Debug: bw version=$(bw --version 2>/dev/null)"
-            BW_UNLOCK_OUT=$(bw unlock --passwordenv BW_PASSWORD --raw 2>&1)
-            echo "Debug: bw unlock exit=$?"
-            BW_SES=$(echo "$BW_UNLOCK_OUT" | grep -E '^[A-Za-z0-9+/=]{20,}$' | tail -n 1)
+            BW_UNLOCK_OUT=$(bw unlock --passwordenv BW_PASSWORD 2>&1)
+            BW_SES=$(echo "$BW_UNLOCK_OUT" | grep -oE 'BW_SESSION="[^"]*"' | cut -d'"' -f2 | tail -n 1)
             if [ -z "$BW_SES" ]; then
-                echo "Debug: bw unlock output: $BW_UNLOCK_OUT"
+                echo "Debug: bw unlock full output: $BW_UNLOCK_OUT"
             fi
             # Regex validation for Base64 session key
             if [[ $BW_SES =~ ^[A-Za-z0-9+/=]{20,}$ ]]; then
