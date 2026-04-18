@@ -63,7 +63,7 @@ if [ ! -f "install.sh" ]; then
         cp ".env" "$DEST_DIR/"
     else
         # Create .env from environment variables if they exist
-        if [ -n "${BW_EMAIL:-}" ] || [ -n "${BW_PASSWORD:-}" ] || [ -n "${ROLE:-}" ] || [ -n "${HOSTNAME:-}" ] || [ -n "${USER_NAME:-}" ] || [ -n "${EMAIL_ADDRESS:-}" ]; then
+        if [ -n "${BW_EMAIL:-}" ] || [ -n "${BW_PASSWORD:-}" ] || [ -n "${ROLE:-}" ] || [ -n "${HOSTNAME:-}" ] || [ -n "${USER_NAME:-}" ] || [ -n "${EMAIL_ADDRESS:-}" ] || [ -n "${SUDO_PASSWORD:-}" ]; then
             echo "Creating .env from environment variables..."
             {
                 [ -n "${BW_EMAIL:-}" ] && echo "BW_EMAIL=$BW_EMAIL"
@@ -72,6 +72,7 @@ if [ ! -f "install.sh" ]; then
                 [ -n "${HOSTNAME:-}" ] && echo "HOSTNAME=$HOSTNAME"
                 [ -n "${USER_NAME:-}" ] && echo "USER_NAME=$USER_NAME"
                 [ -n "${EMAIL_ADDRESS:-}" ] && echo "EMAIL_ADDRESS=$EMAIL_ADDRESS"
+                [ -n "${SUDO_PASSWORD:-}" ] && echo "SUDO_PASSWORD=$SUDO_PASSWORD"
             } > "$DEST_DIR/.env"
         fi
     fi
@@ -83,6 +84,25 @@ fi
 # --- Local Execution Logic ---
 export PATH="$HOME/.local/bin:$PATH"
 CHEZMOI_BIN="$HOME/.local/bin/chezmoi"
+
+# --- Sudo Session Bootstrap ---
+SUDO_PASSWORD="${SUDO_PASSWORD:-}"
+if [ -z "$SUDO_PASSWORD" ] && [ -f ".env" ] && [ ! -L ".env" ]; then
+    SUDO_PASSWORD=$(grep "^SUDO_PASSWORD=" .env | head -n1 | cut -d'=' -f2- | sed -e "s/#.*$//" -e "s/^[[:space:]]*//" -e "s/[[:space:]]*$//" -e "s/^['\"]//" -e "s/['\"]$//")
+fi
+
+if [ -n "$SUDO_PASSWORD" ]; then
+    echo "Gaining sudo session..."
+    if echo "$SUDO_PASSWORD" | sudo -S true 2>/dev/null; then
+        echo "Sudo session active."
+        # Keepalive: refresh sudo timestamp every 60s so session does not expire mid-install
+        ( while true; do sudo -n true 2>/dev/null; sleep 60; done ) &
+        SUDO_KEEPALIVE_PID=$!
+    else
+        echo "Warning: SUDO_PASSWORD provided but sudo authentication failed. Continuing without cached session."
+    fi
+    unset SUDO_PASSWORD
+fi
 
 if [ ! -f "$CHEZMOI_BIN" ]; then
     echo "Installing chezmoi..."
