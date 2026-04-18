@@ -212,7 +212,7 @@ if command -v zramctl >/dev/null 2>&1; then
 [zram0]
 algorithm = zstd
 max-compression = true
-memory-limit = 50%
+memory-limit = 100%
 EOF
 
         echo "Restarting ZRAM service to apply changes..."
@@ -439,6 +439,21 @@ if grep -qiE "^ID(_LIKE)?=.*fedora" /etc/os-release 2>/dev/null; then
     else
         echo "Note: firewalld not installed. libvirt networking may fail on Fedora."
         echo "  Install with: sudo dnf install firewalld"
+    fi
+fi
+
+# tuned profile for virtualization host
+if command -v tuned-adm >/dev/null 2>&1; then
+    CURRENT_PROFILE=$(tuned-adm active 2>/dev/null | grep -oP '(?<=Current active profile: ).+' || echo "")
+    if [ "$CURRENT_PROFILE" = "virtual-host" ]; then
+        echo "tuned profile already set to virtual-host."
+    else
+        echo "Setting tuned profile to virtual-host (was: ${CURRENT_PROFILE:-unknown})..."
+        if $SUDO_CMD tuned-adm profile virtual-host; then
+            echo "tuned profile set to virtual-host."
+        else
+            echo "Warning: Failed to set tuned profile."
+        fi
     fi
 fi
 {{ end }}
