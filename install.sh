@@ -188,29 +188,38 @@ if [ -z "${BW_SESSION:-}" ]; then
     SHOULD_PROMPT=true
     if [ -n "$PASSWORD" ]; then
         echo "BW_PASSWORD detected. Attempting automated unlock..."
-        if bw status | grep -q "unauthenticated"; then
+        BW_STATUS=$(bw status 2>/dev/null | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+        if [ "$BW_STATUS" = "unauthenticated" ]; then
             export BW_PASSWORD="$PASSWORD"
             if [ -n "$EMAIL" ]; then
-                bw login "$EMAIL" --passwordenv BW_PASSWORD
+                if ! bw login "$EMAIL" --passwordenv BW_PASSWORD 2>&1; then
+                    echo "Warning: Bitwarden login failed. Check BW_EMAIL and network connectivity."
+                    unset BW_PASSWORD
+                fi
             else
-                bw login --passwordenv BW_PASSWORD
+                if ! bw login --passwordenv BW_PASSWORD 2>&1; then
+                    echo "Warning: Bitwarden login failed. Check network connectivity."
+                    unset BW_PASSWORD
+                fi
             fi
         fi
-    
-        export BW_PASSWORD="$PASSWORD"
-        # Noise-free capture
-        BW_SES=$(bw unlock --passwordenv BW_PASSWORD --raw | tail -n 1)
-        # Regex validation for Base64 session key
-        if [[ $BW_SES =~ ^[A-Za-z0-9+/=]{20,}$ ]]; then
-            export BW_SESSION="$BW_SES"
-            echo ""
-            echo "Vault unlocked & synced!"
-            bw sync | grep -v "Syncing"
-            SHOULD_PROMPT=false
-        else
-            echo "Warning: Automated unlock failed."
+
+        if [ -n "${BW_PASSWORD:-}" ] || [ "$BW_STATUS" != "unauthenticated" ]; then
+            export BW_PASSWORD="$PASSWORD"
+            # Noise-free capture
+            BW_SES=$(bw unlock --passwordenv BW_PASSWORD --raw 2>/dev/null | tail -n 1)
+            # Regex validation for Base64 session key
+            if [[ $BW_SES =~ ^[A-Za-z0-9+/=]{20,}$ ]]; then
+                export BW_SESSION="$BW_SES"
+                echo ""
+                echo "Vault unlocked & synced!"
+                bw sync 2>/dev/null | grep -v "Syncing"
+                SHOULD_PROMPT=false
+            else
+                echo "Warning: Automated unlock failed. Check BW_PASSWORD is correct."
+            fi
+            unset BW_PASSWORD
         fi
-        unset BW_PASSWORD
     fi
 
     if [ "$SHOULD_PROMPT" = true ] && [ -z "$BW_SESSION" ]; then
