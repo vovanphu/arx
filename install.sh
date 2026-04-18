@@ -210,7 +210,10 @@ if [ -z "${BW_SESSION:-}" ]; then
         if [ -n "${BW_PASSWORD:-}" ] || [ "$BW_STATUS" != "unauthenticated" ]; then
             export BW_PASSWORD="$PASSWORD"
             # Capture both stdout and stderr for diagnostics
+            echo "Debug: BW_PASSWORD set=${BW_PASSWORD:+yes}"
+            echo "Debug: bw version=$(bw --version 2>/dev/null)"
             BW_UNLOCK_OUT=$(bw unlock --passwordenv BW_PASSWORD --raw 2>&1)
+            echo "Debug: bw unlock exit=$?"
             BW_SES=$(echo "$BW_UNLOCK_OUT" | grep -E '^[A-Za-z0-9+/=]{20,}$' | tail -n 1)
             if [ -z "$BW_SES" ]; then
                 echo "Debug: bw unlock output: $BW_UNLOCK_OUT"
