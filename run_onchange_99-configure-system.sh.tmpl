@@ -67,12 +67,14 @@ if command -v tailscale >/dev/null 2>&1; then
         echo "WSL detected. Skipping resolv.conf modifications to prevent DNS breakage."
     fi
 
+    # Tailscale auth key baked in at chezmoi apply time (avoids BW_SESSION runtime dependency)
+    TS_KEY="{{ (bitwarden "item" "tailscale-auth-key").login.password }}"
+
     # Check if authenticated -- daemon may be running but not logged in yet
     TS_STATUS=$(tailscale status 2>/dev/null || true)
     if echo "$TS_STATUS" | grep -qE "^(Tailscale is stopped|NeedsLogin|not logged in)" || [ -z "$TS_STATUS" ]; then
         echo "Tailscale is not logged in. Attempting auto-auth via Bitwarden..."
 
-        TS_KEY=$(bw get password "tailscale-auth-key" 2>/dev/null || true)
         if [ -n "$TS_KEY" ]; then
             TS_UP_FLAGS="--authkey $TS_KEY --hostname $TARGET_NAME --accept-routes"
             # WSL-specific: Disable DNS hijacking to prevent "Temporary failure in name resolution"
@@ -87,7 +89,7 @@ if command -v tailscale >/dev/null 2>&1; then
             fi
             echo "Tailscale Connected Successfully!"
         else
-            echo "Warning: Bitwarden vault unlocked but tailscale-auth-key not found."
+            echo "Warning: tailscale-auth-key not found in Bitwarden vault."
         fi
     else
         echo "Tailscale is already logged in. Updating hostname preference..."
