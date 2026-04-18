@@ -370,5 +370,26 @@ fi
     fi
 {{- end }}
 
+{{ if and (eq .chezmoi.os "linux") .is_workstation }}
+# Configure ibus-unikey GNOME input source after package install
+if grep -qiE "^ID(_LIKE)?=.*fedora" /etc/os-release 2>/dev/null; then
+    if rpm -q ibus-unikey >/dev/null 2>&1; then
+        CURRENT_SOURCES=$(gsettings get org.gnome.desktop.input-sources sources 2>/dev/null || echo "[]")
+        if echo "$CURRENT_SOURCES" | grep -q "unikey"; then
+            echo "ibus-unikey already in GNOME input sources."
+        else
+            echo "Adding ibus-unikey to GNOME input sources..."
+            if [ "$CURRENT_SOURCES" = "@a(ss) []" ] || [ "$CURRENT_SOURCES" = "[]" ]; then
+                gsettings set org.gnome.desktop.input-sources sources "[('xkb', 'us'), ('ibus', 'unikey')]"
+            else
+                NEW_SOURCES=$(echo "$CURRENT_SOURCES" | sed "s/]$/, ('ibus', 'unikey')]/")
+                gsettings set org.gnome.desktop.input-sources sources "$NEW_SOURCES"
+            fi
+            echo "ibus-unikey added. Switch input with Super+Space."
+        fi
+    fi
+fi
+{{ end }}
+
 echo "Linux Package Installation Complete!"
 {{ end }}
