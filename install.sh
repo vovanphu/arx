@@ -206,13 +206,21 @@ if [ -z "${BW_SESSION:-}" ]; then
 
         if [ -n "${BW_PASSWORD:-}" ] || [ "$BW_STATUS" != "unauthenticated" ]; then
             export BW_PASSWORD="$PASSWORD"
-            # bw unlock reads BW_PASSWORD env var directly (no flag needed in newer versions)
-            BW_UNLOCK_OUT=$(BW_PASSWORD="$PASSWORD" bw unlock 2>&1)
-            BW_SES=$(echo "$BW_UNLOCK_OUT" | grep -oE 'BW_SESSION="[^"]*"' | cut -d'"' -f2 | tail -n 1)
-            if [ -z "$BW_SES" ]; then
-                BW_SES=$(echo "$BW_UNLOCK_OUT" | grep -E '^[A-Za-z0-9+/=]{20,}$' | tail -n 1)
+            # If vault is locked (already logged in), logout first then login+unlock
+            # --passwordenv only works reliably immediately after login in some bw versions
+            if [ "$BW_STATUS" = "locked" ]; then
+                bw logout 2>/dev/null || true
+                if [ -n "$EMAIL" ]; then
+                    bw login "$EMAIL" --passwordenv BW_PASSWORD 2>/dev/null || true
+                else
+                    bw login --passwordenv BW_PASSWORD 2>/dev/null || true
+                fi
             fi
+            BW_SES=$(bw unlock --passwordenv BW_PASSWORD --raw 2>/dev/null | tail -n 1)
             if [ -z "$BW_SES" ]; then
+                echo "Debug: bw unlock --raw output empty, trying full output parse..."
+                BW_UNLOCK_OUT=$(bw unlock --passwordenv BW_PASSWORD 2>&1)
+                BW_SES=$(echo "$BW_UNLOCK_OUT" | grep -oE 'BW_SESSION="[^"]*"' | cut -d'"' -f2 | tail -n 1)
                 echo "Debug: bw unlock output: $BW_UNLOCK_OUT"
             fi
             # Regex validation for Base64 session key
