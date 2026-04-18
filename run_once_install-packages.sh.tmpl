@@ -365,7 +365,7 @@ fi
 
         if command_exists fc-cache; then
             echo "Updating font cache..."
-            fc-cache -f "$FONT_DIR"
+            fc-cache -f "$FONT_DIR" 2>/dev/null || fc-cache -f "$HOME/.local/share/fonts" 2>/dev/null || true
         else
             echo "Warning: fc-cache not available. Font cache not updated."
         fi

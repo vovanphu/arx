@@ -67,8 +67,9 @@ if command -v tailscale >/dev/null 2>&1; then
         echo "WSL detected. Skipping resolv.conf modifications to prevent DNS breakage."
     fi
 
-    # Check if logged in (status returns exit code 1 if not running/logged out usually)
-    if ! tailscale status >/dev/null 2>&1; then
+    # Check if authenticated -- daemon may be running but not logged in yet
+    TS_STATUS=$(tailscale status 2>/dev/null || true)
+    if echo "$TS_STATUS" | grep -qE "^(Tailscale is stopped|NeedsLogin|not logged in)" || [ -z "$TS_STATUS" ]; then
         echo "Tailscale is not logged in. Attempting auto-auth via Bitwarden..."
 
         TS_KEY=$(bw get password "tailscale-auth-key" 2>/dev/null || true)
@@ -437,7 +438,7 @@ EOF
             echo "Google Chrome installed."
             # Poll until RPM DB lock is released by post-install scriptlets (max 30s)
             for _i in $(seq 1 30); do
-                if ! $SUDO_CMD fuser /var/lib/rpm/.rpm.lock >/dev/null 2>&1; then
+                if ! $SUDO_CMD fuser /usr/lib/sysimage/rpm/.rpm.lock >/dev/null 2>&1; then
                     break
                 fi
                 sleep 1

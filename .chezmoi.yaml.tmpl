@@ -83,7 +83,7 @@ data:
 
         griffin:
             description: "Secondary workstation"
-            has_master_key: false
+            has_master_key: true
             has_server_key: true
             receives_ssh: true
             is_server: false
@@ -150,7 +150,7 @@ data:
     # Templates should reference these groups instead of hardcoding role lists
 
     # Roles that get Master SSH key deployed
-    roles_with_master_key: {{ list "centaur" "chimera" | join " " | quote }}
+    roles_with_master_key: {{ list "centaur" "chimera" "griffin" | join " " | quote }}
 
     # Roles that get Server SSH key deployed
     roles_with_server_key: {{ list "chimera" "hydra" "griffin" "cyclops" "kraken" "cerberus" "golem" "minion" "siren" | join " " | quote }}
@@ -168,7 +168,7 @@ data:
     # Usage in templates: {{`{{ if .has_master_key }}...{{ end }}`}}
     # CANONICAL: is_server, is_workstation, is_virtualization_host are defined here only.
 
-    has_master_key: {{ has $role (list "centaur" "chimera") }}
+    has_master_key: {{ has $role (list "centaur" "chimera" "griffin") }}
     has_server_key: {{ has $role (list "chimera" "hydra" "griffin" "cyclops" "kraken" "cerberus" "golem" "minion" "siren") }}
     receives_ssh: {{ has $role (list "chimera" "hydra" "griffin" "cyclops" "kraken" "cerberus" "golem" "minion" "siren") }}
     is_server: {{ has $role (list "hydra" "cyclops" "kraken" "cerberus" "golem" "minion" "siren") }}
