@@ -1,9 +1,7 @@
 {{- /* Deploy Master SSH key based on role capability */ -}}
 {{- if .has_master_key -}}
-{{-   if (env "BW_SESSION") -}}
-{{-     $key := (bitwarden "item" "ssh-key-master-ed25519") -}}
-{{-     if $key -}}
+{{-   $key := (bitwarden "item" "ssh-key-master-ed25519") -}}
+{{-   if $key -}}
 {{ $key.notes | replace "\r" "" | trim }}{{ printf "\n" }}
-{{-     end -}}
 {{-   end -}}
 {{- end -}}

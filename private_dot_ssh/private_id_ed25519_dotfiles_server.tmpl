@@ -1,9 +1,7 @@
 {{- /* Deploy Server SSH key based on role capability */ -}}
 {{- if .has_server_key -}}
-{{-   if (env "BW_SESSION") -}}
-{{-     $key := (bitwarden "item" "ssh-key-server-ed25519") -}}
-{{-     if $key -}}
+{{-   $key := (bitwarden "item" "ssh-key-server-ed25519") -}}
+{{-   if $key -}}
 {{ $key.notes | replace "\r" "" | trim }}{{ printf "\n" }}
-{{-     end -}}
 {{-   end -}}
 {{- end -}}
