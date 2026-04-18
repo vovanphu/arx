@@ -206,8 +206,12 @@ if [ -z "${BW_SESSION:-}" ]; then
 
         if [ -n "${BW_PASSWORD:-}" ] || [ "$BW_STATUS" != "unauthenticated" ]; then
             export BW_PASSWORD="$PASSWORD"
-            # Noise-free capture
-            BW_SES=$(bw unlock --passwordenv BW_PASSWORD --raw 2>/dev/null | tail -n 1)
+            # Capture both stdout and stderr for diagnostics
+            BW_UNLOCK_OUT=$(bw unlock --passwordenv BW_PASSWORD --raw 2>&1)
+            BW_SES=$(echo "$BW_UNLOCK_OUT" | grep -E '^[A-Za-z0-9+/=]{20,}$' | tail -n 1)
+            if [ -z "$BW_SES" ]; then
+                echo "Debug: bw unlock output: $BW_UNLOCK_OUT"
+            fi
             # Regex validation for Base64 session key
             if [[ $BW_SES =~ ^[A-Za-z0-9+/=]{20,}$ ]]; then
                 export BW_SESSION="$BW_SES"
