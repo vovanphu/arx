@@ -89,88 +89,6 @@ else
     echo "This usually means you need to log out and log back in after adding user to sudo group."
 fi
 
-# Detect package manager and OS family at runtime
-PKG_MGR=""
-OS_FAMILY=""
-if command_exists dnf; then
-    PKG_MGR="dnf"
-    OS_FAMILY="fedora"
-elif command_exists apt-get; then
-    PKG_MGR="apt"
-    OS_FAMILY="debian"
-fi
-
-echo "Detected package manager: $PKG_MGR_CMD (OS family: $DISTRO_FAMILY)"
-
-# Repository configuration based on OS family
-if [ "$PKG_MGR_CMD" = "dnf" ]; then
-    # Fedora: Enable RPM Fusion repositories for proprietary software
-{{ if .is_workstation }}
-    echo "Detected Fedora with workstation role. Setting up RPM Fusion repositories..."
-    if [ "$HAVE_SUDO" = true ]; then
-        # Function to setup RPM Fusion
-        setup_rpm_fusion() {
-            # Check if RPM Fusion is already enabled
-            if sudo dnf repolist 2>/dev/null | grep -q "rpmfusion"; then
-                echo "RPM Fusion repositories already enabled"
-                return 0
-            fi
-
-            echo "Installing RPM Fusion repositories..."
-            # Install RPM Fusion free and non-free repos
-            sudo dnf install -y \
-                https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
-                https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
-
-            # Enable copr repos for additional software
-            sudo dnf config-manager --set-enabled fedora-cisco-openh264 2>/dev/null || true
-
-            echo "RPM Fusion repositories enabled successfully"
-        }
-
-        setup_rpm_fusion
-    else
-        echo "Skipping RPM Fusion setup (no sudo access)"
-    fi
-{{ end }}
-elif [ "$PKG_MGR_CMD" = "apt" ]; then
-    # Debian/Ubuntu: Enable non-free repositories for Interactive roles on Debian ONLY (not Ubuntu)
-{{ if .is_workstation }}
-    # Check if we are on Debian (not Ubuntu which also has /etc/debian_version)
-    if [ -f /etc/debian_version ] && [ ! -f /etc/lsb-release ]; then
-        echo "Detected Debian. Ensuring non-free repositories are enabled..."
-        if [ "$HAVE_SUDO" = true ]; then
-            # Add contrib non-free non-free-firmware if not already present
-            if ! grep -q "non-free" /etc/apt/sources.list 2>/dev/null; then
-                sudo sed -i 's/main$/main contrib non-free non-free-firmware/g' /etc/apt/sources.list
-                echo "Non-free repositories added to sources.list"
-            else
-                echo "Non-free repositories already enabled"
-            fi
-        else
-            echo "Skipping non-free setup (no sudo access)"
-        fi
-    fi
-{{ end }}
-fi
-
-# Update package lists
-if [ "$PKG_MGR" = "apt" ]; then
-    echo "Updating apt repositories..."
-    if [ "$HAVE_SUDO" = true ]; then
-        sudo apt-get update
-    else
-        echo "Skipping apt update (no sudo access)"
-    fi
-elif [ "$PKG_MGR" = "dnf" ]; then
-    echo "Updating dnf repositories..."
-    if [ "$HAVE_SUDO" = true ]; then
-        sudo dnf makecache --refresh
-    else
-        echo "Skipping dnf makecache (no sudo access)"
-    fi
-fi
-
 # Pre-install Tailscale via official script if missing
 if ! command_exists tailscale; then
     echo "Tailscale not found. Running official installer to setup repos..."
@@ -190,6 +108,67 @@ if command -v apt-get >/dev/null 2>&1; then
 elif command -v dnf >/dev/null 2>&1; then
     DISTRO_FAMILY="fedora"
     PKG_MGR_CMD="dnf"
+fi
+
+echo "Detected package manager: $PKG_MGR_CMD (OS family: $DISTRO_FAMILY)"
+
+# Repository configuration based on OS family
+if [ "$PKG_MGR_CMD" = "dnf" ]; then
+    # Fedora: Enable RPM Fusion repositories for proprietary software
+{{ if .is_workstation }}
+    echo "Detected Fedora with workstation role. Setting up RPM Fusion repositories..."
+    if [ "$HAVE_SUDO" = true ]; then
+        setup_rpm_fusion() {
+            if sudo dnf repolist 2>/dev/null | grep -q "rpmfusion"; then
+                echo "RPM Fusion repositories already enabled"
+                return 0
+            fi
+            echo "Installing RPM Fusion repositories..."
+            sudo dnf install -y \
+                https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
+                https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
+            sudo dnf config-manager --set-enabled fedora-cisco-openh264 2>/dev/null || true
+            echo "RPM Fusion repositories enabled successfully"
+        }
+        setup_rpm_fusion
+    else
+        echo "Skipping RPM Fusion setup (no sudo access)"
+    fi
+{{ end }}
+elif [ "$PKG_MGR_CMD" = "apt" ]; then
+    # Debian/Ubuntu: Enable non-free repositories for Interactive roles on Debian ONLY (not Ubuntu)
+{{ if .is_workstation }}
+    if [ -f /etc/debian_version ] && [ ! -f /etc/lsb-release ]; then
+        echo "Detected Debian. Ensuring non-free repositories are enabled..."
+        if [ "$HAVE_SUDO" = true ]; then
+            if ! grep -q "non-free" /etc/apt/sources.list 2>/dev/null; then
+                sudo sed -i 's/main$/main contrib non-free non-free-firmware/g' /etc/apt/sources.list
+                echo "Non-free repositories added to sources.list"
+            else
+                echo "Non-free repositories already enabled"
+            fi
+        else
+            echo "Skipping non-free setup (no sudo access)"
+        fi
+    fi
+{{ end }}
+fi
+
+# Update package lists
+if [ "$PKG_MGR_CMD" = "apt" ]; then
+    echo "Updating apt repositories..."
+    if [ "$HAVE_SUDO" = true ]; then
+        sudo apt-get update
+    else
+        echo "Skipping apt update (no sudo access)"
+    fi
+elif [ "$PKG_MGR_CMD" = "dnf" ]; then
+    echo "Updating dnf repositories..."
+    if [ "$HAVE_SUDO" = true ]; then
+        sudo dnf makecache --refresh
+    else
+        echo "Skipping dnf makecache (no sudo access)"
+    fi
 fi
 
 # Get package manager configuration (for reference)
