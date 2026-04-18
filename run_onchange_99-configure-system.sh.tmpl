@@ -245,56 +245,23 @@ EOF
 fi
 
 # Enable KSM (Kernel Samepage Merging)
-if grep -qiE "^ID(_LIKE)?=.*fedora" /etc/os-release 2>/dev/null; then
-    # Fedora family: ksm.service manages the kernel KSM driver; ksmtuned.service provides dynamic tuning (optional)
-    KSM_FOUND=false
-    if systemctl list-unit-files | grep -q "^ksm.service"; then
-        KSM_FOUND=true
-        echo "Found ksm.service. Enabling Kernel Samepage Merging..."
-        if ! systemctl is-active --quiet ksm 2>/dev/null; then
-            $SUDO_CMD systemctl enable ksm > /dev/null 2>&1
-            if $SUDO_CMD systemctl start ksm; then
-                echo -e "\033[32mksm.service started successfully.\033[0m"
-            else
-                echo -e "\033[33mWarning: Failed to start ksm.service.\033[0m"
-            fi
-        else
-            echo -e "\033[32mksm.service is already running.\033[0m"
-        fi
-    fi
-    if systemctl list-unit-files | grep -q "^ksmtuned.service"; then
-        KSM_FOUND=true
-        echo "Found ksmtuned.service. Enabling KSM dynamic tuning..."
-        if ! systemctl is-active --quiet ksmtuned 2>/dev/null; then
-            $SUDO_CMD systemctl enable ksmtuned > /dev/null 2>&1
-            if $SUDO_CMD systemctl start ksmtuned; then
-                echo -e "\033[32mksmtuned.service started successfully.\033[0m"
-            else
-                echo -e "\033[33mWarning: Failed to start ksmtuned.service.\033[0m"
-            fi
-        else
-            echo -e "\033[32mksmtuned.service is already running.\033[0m"
-        fi
-    fi
-    if [ "$KSM_FOUND" = false ]; then
-        echo "Neither ksm.service nor ksmtuned.service found. Skipping KSM configuration."
+# Modern Fedora dropped ksm.service/ksmtuned.service -- enable via sysctl instead (persists across reboots)
+if [ -f /sys/kernel/mm/ksm/run ]; then
+    echo "Enabling KSM via sysctl..."
+    # Enable KSM and set sysctl for persistence
+    if $SUDO_CMD tee /etc/sysctl.d/99-ksm.conf > /dev/null << 'EOF'
+# Enable Kernel Samepage Merging for VM memory deduplication
+kernel.mm.ksm.run = 1
+kernel.mm.ksm.sleep_millisecs = 20
+EOF
+    then
+        $SUDO_CMD sysctl -p /etc/sysctl.d/99-ksm.conf > /dev/null 2>&1
+        echo -e "\033[32mKSM enabled ($(cat /sys/kernel/mm/ksm/pages_shared 2>/dev/null || echo 0) pages shared).\033[0m"
+    else
+        echo -e "\033[33mWarning: Failed to configure KSM.\033[0m"
     fi
 else
-    if systemctl list-unit-files | grep -q "ksmtuned.service"; then
-        echo "Found ksmtuned. Enabling Kernel Samepage Merging..."
-        if ! systemctl is-active --quiet ksmtuned 2>/dev/null; then
-            $SUDO_CMD systemctl enable ksmtuned > /dev/null 2>&1
-            if $SUDO_CMD systemctl start ksmtuned; then
-                echo -e "\033[32mksmtuned started successfully.\033[0m"
-            else
-                echo -e "\033[33mWarning: Failed to start ksmtuned.\033[0m"
-            fi
-        else
-            echo -e "\033[32mksmtuned is already running.\033[0m"
-        fi
-    else
-        echo "ksmtuned service not found. Skipping KSM configuration."
-    fi
+    echo "KSM not available on this kernel. Skipping."
 fi
 
 # SELinux configuration for KVM/libvirt on Fedora family
