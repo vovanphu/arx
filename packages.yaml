@@ -458,6 +458,9 @@ linux:
         - "ncdu"
         - "zram-generator-defaults"
         - "tuned"
+        - "fcitx5"
+        - "fcitx5-unikey"
+        - "fcitx5-configtool"
       cyclops: # General Purpose Server
         - "openssh-server"
         - "nginx"

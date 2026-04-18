@@ -441,4 +441,56 @@ if grep -qiE "^ID(_LIKE)?=.*fedora" /etc/os-release 2>/dev/null; then
 fi
 {{ end }}
 
+{{ if and (eq .chezmoi.os "linux") .is_workstation }}
+# Vietnamese input method (fcitx5-unikey) -- Fedora family only
+if grep -qiE "^ID(_LIKE)?=.*fedora" /etc/os-release 2>/dev/null; then
+    if command -v fcitx5 >/dev/null 2>&1; then
+        echo "--- Vietnamese Input Method (fcitx5-unikey) ---"
+
+        PROFILE_D_FILE="/etc/profile.d/fcitx5.sh"
+        NEEDS_WRITE=false
+
+        if [ ! -f "$PROFILE_D_FILE" ]; then
+            NEEDS_WRITE=true
+        elif ! grep -q "INPUT_METHOD=fcitx5" "$PROFILE_D_FILE" 2>/dev/null; then
+            NEEDS_WRITE=true
+        fi
+
+        if [ "$NEEDS_WRITE" = true ]; then
+            echo "Writing fcitx5 environment variables to $PROFILE_D_FILE..."
+            cat << 'EOF' | $SUDO_CMD tee "$PROFILE_D_FILE" > /dev/null
+export INPUT_METHOD=fcitx5
+export GTK_IM_MODULE=fcitx5
+export QT_IM_MODULE=fcitx5
+export XMODIFIERS=@im=fcitx5
+EOF
+            echo "fcitx5 environment configured. Re-login required to take effect."
+        else
+            echo "fcitx5 environment already configured."
+        fi
+
+        # Enable fcitx5 autostart for the current user
+        AUTOSTART_DIR="$HOME/.config/autostart"
+        AUTOSTART_FILE="$AUTOSTART_DIR/fcitx5.desktop"
+        if [ ! -f "$AUTOSTART_FILE" ]; then
+            mkdir -p "$AUTOSTART_DIR"
+            cat << 'EOF' > "$AUTOSTART_FILE"
+[Desktop Entry]
+Type=Application
+Name=Fcitx5
+Exec=fcitx5 --replace -d
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+EOF
+            echo "fcitx5 autostart entry created."
+        else
+            echo "fcitx5 autostart entry already present."
+        fi
+    else
+        echo "Note: fcitx5 not found. Skipping Vietnamese input method configuration."
+    fi
+fi
+{{ end }}
+
 {{ end }}
