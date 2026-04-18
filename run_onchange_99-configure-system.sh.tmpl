@@ -209,7 +209,8 @@ zram-size = ram
 compression-algorithm = zstd
 EOF
         echo "Restarting ZRAM service to apply changes..."
-        if $SUDO_CMD systemctl restart systemd-zram-setup@zram0; then
+        $SUDO_CMD systemctl stop systemd-zram-setup@zram0 2>/dev/null || true
+        if $SUDO_CMD systemctl start systemd-zram-setup@zram0; then
             echo -e "\033[32mZRAM configured and running.\033[0m"
         else
             echo -e "\033[33mWarning: Failed to restart ZRAM service.\033[0m"
