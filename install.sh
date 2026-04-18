@@ -101,6 +101,18 @@ if ! command -v bw &> /dev/null; then
         chmod +x bw
         mv bw "$HOME/.local/bin/"
         rm bw.zip
+    elif command -v dnf &> /dev/null; then
+        if ! command -v unzip &> /dev/null; then
+            sudo dnf install -y unzip
+        fi
+        curl -L "$BITWARDEN_CLI_URL" -o bw.zip
+        unzip -o bw.zip
+        chmod +x bw
+        mv bw "$HOME/.local/bin/"
+        rm bw.zip
+    else
+        echo "Error: Cannot install Bitwarden CLI -- no supported package manager found (apt/dnf)."
+        exit 1
     fi
 fi
 
