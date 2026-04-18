@@ -206,8 +206,6 @@ if [ -z "${BW_SESSION:-}" ]; then
             echo ""
             echo "Vault unlocked & synced!"
             bw sync | grep -v "Syncing"
-            ( while true; do bw sync --session "$BW_SESSION" >/dev/null 2>&1; sleep 60; done ) &
-            BW_KEEPALIVE_PID=$!
             SHOULD_PROMPT=false
         else
             echo "Warning: Automated unlock failed."
@@ -225,8 +223,6 @@ if [ -z "${BW_SESSION:-}" ]; then
                 echo ""
                 echo "Vault unlocked!"
                 bw sync | grep -v "Syncing"
-                ( while true; do bw sync --session "$BW_SESSION" >/dev/null 2>&1; sleep 60; done ) &
-                BW_KEEPALIVE_PID=$!
             fi
         fi
     fi
@@ -336,7 +332,27 @@ fi
 if [ -n "$BW_SESSION" ]; then
     echo "Verifying Bitwarden session..."
     if ! bw status 2>&1 | grep -q '"status":"unlocked"'; then
-        echo "Warning: Bitwarden session expired. Templates requiring vault access may fail."
+        echo "Bitwarden session expired. Attempting to re-unlock..."
+        _BW_RELOCK_PASSWORD=""
+        if [ -f ".env" ] && [ ! -L ".env" ]; then
+            _BW_RELOCK_PASSWORD=$(grep "^BW_PASSWORD=" .env | head -n1 | cut -d'=' -f2- | sed -e "s/#.*$//" -e "s/^[[:space:]]*//" -e "s/[[:space:]]*$//" -e "s/^['\"]//" -e "s/['\"]$//")
+        fi
+        if [ -n "$_BW_RELOCK_PASSWORD" ]; then
+            export BW_PASSWORD="$_BW_RELOCK_PASSWORD"
+            _BW_NEW_SESSION=$(bw unlock --passwordenv BW_PASSWORD --raw 2>/dev/null | tail -n1)
+            unset BW_PASSWORD
+            unset _BW_RELOCK_PASSWORD
+            if [[ $_BW_NEW_SESSION =~ ^[A-Za-z0-9+/=]{20,}$ ]]; then
+                export BW_SESSION="$_BW_NEW_SESSION"
+                echo "Bitwarden session refreshed."
+            else
+                echo "Warning: Failed to re-unlock Bitwarden. Templates requiring vault access may fail."
+            fi
+        else
+            echo "Warning: Bitwarden session expired and no password available to re-unlock. Templates requiring vault access may fail."
+        fi
+    else
+        echo "Bitwarden session valid."
     fi
 fi
 if ! "$CHEZMOI_BIN" apply --source="$SCRIPT_DIR" --force; then
