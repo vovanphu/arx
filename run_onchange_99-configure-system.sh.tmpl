@@ -221,7 +221,7 @@ EOF
         else
             echo -e "\033[33mWarning: Failed to restart ZRAM service.\033[0m"
         fi
-    else
+    elif ! grep -qiE "^ID(_LIKE)?=.*fedora" /etc/os-release 2>/dev/null; then
         echo "Found zram-tools. Configuring ZRAM for Hypervisor (zstd, 50%)..."
         # Backup existing config
         if [ -f /etc/default/zramswap ]; then
@@ -245,6 +245,8 @@ EOF
         else
             echo -e "\033[33mWarning: Failed to restart ZRAM service.\033[0m"
         fi
+    else
+        echo "Note: ZRAM managed by zram-generator-defaults on Fedora. No manual configuration needed."
     fi
 fi
 
