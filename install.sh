@@ -14,12 +14,17 @@ cleanup() {
     if [ -n "${SUDO_KEEPALIVE_PID:-}" ]; then
         kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
     fi
+    # Kill Bitwarden session keepalive background process if running
+    if [ -n "${BW_KEEPALIVE_PID:-}" ]; then
+        kill "$BW_KEEPALIVE_PID" 2>/dev/null || true
+    fi
     # Secure cleanup: delete .env file
     rm -f .env
 }
 # Ensure cleanup is called on exit
 trap cleanup EXIT INT TERM
 SUDO_KEEPALIVE_PID=""
+BW_KEEPALIVE_PID=""
 
 # --- Remote Bootstrap Logic ---
 if [ ! -f "install.sh" ]; then 
@@ -201,6 +206,8 @@ if [ -z "${BW_SESSION:-}" ]; then
             echo ""
             echo "Vault unlocked & synced!"
             bw sync | grep -v "Syncing"
+            ( while true; do bw sync --session "$BW_SESSION" >/dev/null 2>&1; sleep 60; done ) &
+            BW_KEEPALIVE_PID=$!
             SHOULD_PROMPT=false
         else
             echo "Warning: Automated unlock failed."
@@ -218,6 +225,8 @@ if [ -z "${BW_SESSION:-}" ]; then
                 echo ""
                 echo "Vault unlocked!"
                 bw sync | grep -v "Syncing"
+                ( while true; do bw sync --session "$BW_SESSION" >/dev/null 2>&1; sleep 60; done ) &
+                BW_KEEPALIVE_PID=$!
             fi
         fi
     fi
