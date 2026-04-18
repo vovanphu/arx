@@ -188,7 +188,10 @@ if [ -z "${BW_SESSION:-}" ]; then
     SHOULD_PROMPT=true
     if [ -n "$PASSWORD" ]; then
         echo "BW_PASSWORD detected. Attempting automated unlock..."
-        BW_STATUS=$(bw status 2>/dev/null | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+        BW_STATUS_RAW=$(bw status 2>/dev/null)
+        BW_STATUS=$(echo "$BW_STATUS_RAW" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+        echo "Debug: bw status raw: $BW_STATUS_RAW"
+        echo "Debug: bw status parsed: $BW_STATUS"
         if [ "$BW_STATUS" = "unauthenticated" ]; then
             export BW_PASSWORD="$PASSWORD"
             if [ -n "$EMAIL" ]; then
