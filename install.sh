@@ -217,12 +217,6 @@ if [ -z "${BW_SESSION:-}" ]; then
                 fi
             fi
             BW_SES=$(bw unlock --passwordenv BW_PASSWORD --raw 2>/dev/null | tail -n 1)
-            if [ -z "$BW_SES" ]; then
-                echo "Debug: bw unlock --raw output empty, trying full output parse..."
-                BW_UNLOCK_OUT=$(bw unlock --passwordenv BW_PASSWORD 2>&1)
-                BW_SES=$(echo "$BW_UNLOCK_OUT" | grep -oE 'BW_SESSION="[^"]*"' | cut -d'"' -f2 | tail -n 1)
-                echo "Debug: bw unlock output: $BW_UNLOCK_OUT"
-            fi
             # Regex validation for Base64 session key
             if [[ $BW_SES =~ ^[A-Za-z0-9+/=]{20,}$ ]]; then
                 export BW_SESSION="$BW_SES"
