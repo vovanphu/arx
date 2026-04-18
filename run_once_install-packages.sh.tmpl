@@ -233,7 +233,7 @@ fi
 {{- $mappings := $linuxData.package_mappings }}
 declare -A PKG_ALIASES=()
 {{- range $key, $val := $mappings }}
-PKG_ALIASES["{{ $key }}]="{{ $val.fedora }}"
+PKG_ALIASES["{{ $key }}"]="{{ $val.fedora }}"
 {{- end }}
 
 # Apply package name mappings for Fedora
