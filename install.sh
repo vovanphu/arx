@@ -121,7 +121,7 @@ if ! command -v bw &> /dev/null; then
         if ! command -v unzip &> /dev/null; then
             sudo apt-get update && sudo apt-get install -y unzip
         fi
-        curl -L "$BITWARDEN_CLI_URL" -o bw.zip
+        curl -fL "$BITWARDEN_CLI_URL" -o bw.zip
         unzip -o bw.zip
         chmod +x bw
         mv bw "$HOME/.local/bin/"
@@ -130,7 +130,7 @@ if ! command -v bw &> /dev/null; then
         if ! command -v unzip &> /dev/null; then
             sudo dnf install -y unzip
         fi
-        curl -L "$BITWARDEN_CLI_URL" -o bw.zip
+        curl -fL "$BITWARDEN_CLI_URL" -o bw.zip
         unzip -o bw.zip
         chmod +x bw
         mv bw "$HOME/.local/bin/"

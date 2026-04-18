@@ -320,7 +320,7 @@ fi
 if ! command_exists bw; then
     echo "Installing Bitwarden CLI..."
     # Download the native binary
-    curl -L "$BITWARDEN_CLI_URL" -o bw.zip
+    curl -fL "$BITWARDEN_CLI_URL" -o bw.zip
     unzip -o bw.zip
     chmod +x bw
     mkdir -p "$HOME/.local/bin"
