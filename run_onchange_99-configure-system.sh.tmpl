@@ -334,7 +334,7 @@ fi
 # libvirt group membership
 # Fedora does not add users to the libvirt group automatically (unlike Debian postinst scripts).
 # Running this on Debian is safe: usermod -aG is additive and idempotent when already a member.
-LIBVIRT_USER="${USER:-$(logname 2>/dev/null)}"
+LIBVIRT_USER="${USER:-$(whoami 2>/dev/null)}"
 if getent group libvirt >/dev/null 2>&1; then
     if [ -n "$LIBVIRT_USER" ]; then
         if id -nG "$LIBVIRT_USER" 2>/dev/null | tr ' ' '\n' | grep -qx libvirt; then

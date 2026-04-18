@@ -1,8 +1,5 @@
 {{- /* Generate authorized_keys for roles that receive SSH connections */ -}}
 {{ if .receives_ssh }}
-{{   if not (env "BW_SESSION") }}
-{{     fail "BW_SESSION is not set -- run: export BW_SESSION=$(bw unlock --raw)" }}
-{{   end }}
 {{   $masterKey := (bitwarden "item" "ssh-key-master-ed25519") }}
 {{   $serverKey := (bitwarden "item" "ssh-key-server-ed25519") }}
 {{   if $masterKey }}

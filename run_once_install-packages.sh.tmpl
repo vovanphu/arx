@@ -254,7 +254,7 @@ echo "Installing packages: $PACKAGES"
 if [ "$PKG_MGR_CMD" = "apt" ]; then
     # Warning: unquoted variable to allow splitting.
     # Filter out 'starship' since it's installed via script, not apt.
-    APT_PACKAGES=$(echo $PACKAGES | sed 's/starship//g')
+    APT_PACKAGES=$(echo "$PACKAGES" | sed 's/starship//g')
 
     # Install packages
     if [ "$HAVE_SUDO" = true ]; then
