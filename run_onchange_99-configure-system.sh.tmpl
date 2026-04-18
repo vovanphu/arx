@@ -41,7 +41,7 @@ validate_package_installation() {
             echo "Error: Package $package failed to install via apt"
             return 1
         fi
-    elif [ "$PKG_MGR" = "dnf" ]; then
+    elif [ "$package_manager" = "dnf" ]; then
         if ! rpm -q "$package" >/dev/null 2>&1; then
             echo "Error: Package $package failed to install via dnf"
             return 1

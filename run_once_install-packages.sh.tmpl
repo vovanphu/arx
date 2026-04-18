@@ -236,15 +236,13 @@ elif [ "$DISTRO_FAMILY" = "fedora" ]; then
 {{- end }}
 fi
 
-# Load package mappings from packages.yaml
-{{- $mappings := $linuxData.package_mappings }}
-declare -A PKG_ALIASES=()
-{{- range $key, $val := $mappings }}
-PKG_ALIASES["{{ $key }}"]="{{ $val.fedora }}"
-{{- end }}
-
 # Apply package name mappings for Fedora
+{{- $mappings := $linuxData.package_mappings }}
 if [ "$DISTRO_FAMILY" = "fedora" ]; then
+    declare -A PKG_ALIASES=()
+{{- range $key, $val := $mappings }}
+    PKG_ALIASES["{{ $key }}"]="{{ $val.fedora }}"
+{{- end }}
     for alias in "${!PKG_ALIASES[@]}"; do
         PACKAGES=$(echo "$PACKAGES" | sed "s/\b$alias\b/${PKG_ALIASES[$alias]}/g")
     done
@@ -340,10 +338,10 @@ fi
 
         # Ensure unzip is available
         if ! command_exists unzip; then
-             if [ "$PKG_MGR" = "apt" ]; then
+             if [ "$PKG_MGR_CMD" = "apt" ]; then
                  echo "Installing unzip for font extraction..."
                  sudo apt-get install -y unzip
-             elif [ "$PKG_MGR" = "dnf" ]; then
+             elif [ "$PKG_MGR_CMD" = "dnf" ]; then
                  echo "Installing unzip for font extraction..."
                  sudo dnf install -y unzip
              fi
@@ -356,10 +354,10 @@ fi
 
         # Install fontconfig for fc-cache if not available
         if ! command_exists fc-cache; then
-            if [ "$PKG_MGR" = "apt" ]; then
+            if [ "$PKG_MGR_CMD" = "apt" ]; then
                 echo "Installing fontconfig for font cache management..."
                 sudo apt-get install -y fontconfig
-            elif [ "$PKG_MGR" = "dnf" ]; then
+            elif [ "$PKG_MGR_CMD" = "dnf" ]; then
                 echo "Installing fontconfig for font cache management..."
                 sudo dnf install -y fontconfig
             fi
