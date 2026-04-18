@@ -208,12 +208,12 @@ if command -v zramctl >/dev/null 2>&1; then
 zram-size = ram
 compression-algorithm = zstd
 EOF
-        echo "Restarting ZRAM service to apply changes..."
-        $SUDO_CMD systemctl stop systemd-zram-setup@zram0 2>/dev/null || true
-        if $SUDO_CMD systemctl start systemd-zram-setup@zram0; then
-            echo -e "\033[32mZRAM configured and running.\033[0m"
+        if zramctl 2>/dev/null | grep -q zram0; then
+            echo -e "\033[32mZRAM already running. Config updated -- will apply on next boot.\033[0m"
         else
-            echo -e "\033[33mWarning: Failed to restart ZRAM service.\033[0m"
+            $SUDO_CMD systemctl start systemd-zram-setup@zram0 && \
+                echo -e "\033[32mZRAM configured and running.\033[0m" || \
+                echo -e "\033[33mWarning: Failed to start ZRAM service.\033[0m"
         fi
     elif ! grep -qiE "^ID(_LIKE)?=.*fedora" /etc/os-release 2>/dev/null; then
         echo "Found zram-tools. Configuring ZRAM for Hypervisor (zstd, 50%)..."
