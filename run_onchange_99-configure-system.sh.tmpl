@@ -439,6 +439,8 @@ EOF
         echo "Installing Google Chrome..."
         if $SUDO_CMD dnf install -y google-chrome-stable; then
             echo "Google Chrome installed."
+            # Wait for RPM post-install scriptlets to release the RPM DB lock
+            sleep 5
         else
             echo "Warning: Failed to install Google Chrome."
         fi

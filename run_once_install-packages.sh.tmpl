@@ -92,7 +92,14 @@ fi
 # Pre-install Tailscale via official script if missing
 if ! command_exists tailscale; then
     echo "Tailscale not found. Running official installer to setup repos..."
-    curl -fsSL "$TAILSCALE_INSTALL_URL" | sh
+    if ! curl -fsSL "$TAILSCALE_INSTALL_URL" | sh; then
+        echo "Warning: Tailscale installer exited with error. Checking if tailscale binary is available..."
+        if command_exists tailscale; then
+            echo "Tailscale binary found despite installer error. Continuing."
+        else
+            echo "Warning: Tailscale not installed. Run 'curl -fsSL https://tailscale.com/install.sh | sh' manually."
+        fi
+    fi
 fi
 
 # Load package data based on OS family
