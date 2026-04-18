@@ -249,20 +249,195 @@ EOF
 fi
 
 # Enable KSM (Kernel Samepage Merging)
-if systemctl list-unit-files | grep -q "ksmtuned.service"; then
-    echo "Found ksmtuned. Enabling Kernel Samepage Merging..."
-    if ! systemctl is-active --quiet ksmtuned 2>/dev/null; then
-        $SUDO_CMD systemctl enable ksmtuned > /dev/null 2>&1
-        if $SUDO_CMD systemctl start ksmtuned; then
-            echo -e "\033[32mksmtuned started successfully.\033[0m"
+if grep -qiE "^ID(_LIKE)?=.*fedora" /etc/os-release 2>/dev/null; then
+    # Fedora family: ksm.service manages the kernel KSM driver; ksmtuned.service provides dynamic tuning (optional)
+    KSM_FOUND=false
+    if systemctl list-unit-files | grep -q "^ksm.service"; then
+        KSM_FOUND=true
+        echo "Found ksm.service. Enabling Kernel Samepage Merging..."
+        if ! systemctl is-active --quiet ksm 2>/dev/null; then
+            $SUDO_CMD systemctl enable ksm > /dev/null 2>&1
+            if $SUDO_CMD systemctl start ksm; then
+                echo -e "\033[32mksm.service started successfully.\033[0m"
+            else
+                echo -e "\033[33mWarning: Failed to start ksm.service.\033[0m"
+            fi
         else
-            echo -e "\033[33mWarning: Failed to start ksmtuned.\033[0m"
+            echo -e "\033[32mksm.service is already running.\033[0m"
         fi
-    else
-        echo -e "\033[32mksmtuned is already running.\033[0m"
+    fi
+    if systemctl list-unit-files | grep -q "^ksmtuned.service"; then
+        KSM_FOUND=true
+        echo "Found ksmtuned.service. Enabling KSM dynamic tuning..."
+        if ! systemctl is-active --quiet ksmtuned 2>/dev/null; then
+            $SUDO_CMD systemctl enable ksmtuned > /dev/null 2>&1
+            if $SUDO_CMD systemctl start ksmtuned; then
+                echo -e "\033[32mksmtuned.service started successfully.\033[0m"
+            else
+                echo -e "\033[33mWarning: Failed to start ksmtuned.service.\033[0m"
+            fi
+        else
+            echo -e "\033[32mksmtuned.service is already running.\033[0m"
+        fi
+    fi
+    if [ "$KSM_FOUND" = false ]; then
+        echo "Neither ksm.service nor ksmtuned.service found. Skipping KSM configuration."
     fi
 else
-    echo "ksmtuned service not found. Skipping KSM configuration."
+    if systemctl list-unit-files | grep -q "ksmtuned.service"; then
+        echo "Found ksmtuned. Enabling Kernel Samepage Merging..."
+        if ! systemctl is-active --quiet ksmtuned 2>/dev/null; then
+            $SUDO_CMD systemctl enable ksmtuned > /dev/null 2>&1
+            if $SUDO_CMD systemctl start ksmtuned; then
+                echo -e "\033[32mksmtuned started successfully.\033[0m"
+            else
+                echo -e "\033[33mWarning: Failed to start ksmtuned.\033[0m"
+            fi
+        else
+            echo -e "\033[32mksmtuned is already running.\033[0m"
+        fi
+    else
+        echo "ksmtuned service not found. Skipping KSM configuration."
+    fi
+fi
+
+# SELinux configuration for KVM/libvirt on Fedora family
+SELINUX_OS_ID=""
+SELINUX_OS_ID_LIKE=""
+if [ -f /etc/os-release ]; then
+    SELINUX_OS_ID=$(grep '^ID=' /etc/os-release | cut -d= -f2 | tr -d '"')
+    SELINUX_OS_ID_LIKE=$(grep '^ID_LIKE=' /etc/os-release | cut -d= -f2 | tr -d '"')
+fi
+
+if [ "$SELINUX_OS_ID" = "fedora" ] || \
+   echo "$SELINUX_OS_ID_LIKE" | grep -qiE "(fedora|rhel|rocky)"; then
+    echo "--- SELinux KVM/libvirt Configuration (Fedora family) ---"
+
+    if command -v getenforce >/dev/null 2>&1; then
+        SELINUX_STATUS=$(getenforce 2>/dev/null || echo "Disabled")
+        echo "SELinux status: $SELINUX_STATUS"
+
+        if [ "$SELINUX_STATUS" = "Enforcing" ]; then
+            # Restore correct SELinux file contexts for libvirt.
+            # After installation, file contexts under /var/lib/libvirt can be mislabeled,
+            # causing AVC denials when virtqemud/libvirtd tries to access them.
+            if command -v restorecon >/dev/null 2>&1; then
+                echo "Restoring SELinux file contexts for /var/lib/libvirt..."
+                if $SUDO_CMD restorecon -R /var/lib/libvirt; then
+                    echo "SELinux file contexts restored for /var/lib/libvirt."
+                else
+                    echo "Warning: restorecon failed for /var/lib/libvirt."
+                fi
+            else
+                echo "Warning: restorecon not found. SELinux file contexts not restored."
+            fi
+
+            # Set virt_use_nfs boolean if nfs-utils is installed.
+            # This boolean is required for libvirt to access NFS-backed storage pools.
+            # Only set it when nfs-utils is present to avoid enabling it unnecessarily.
+            if rpm -q nfs-utils >/dev/null 2>&1; then
+                if command -v setsebool >/dev/null 2>&1; then
+                    echo "nfs-utils detected. Setting SELinux boolean virt_use_nfs=on (persistent)..."
+                    if $SUDO_CMD setsebool -P virt_use_nfs on; then
+                        echo "SELinux boolean virt_use_nfs set to on."
+                    else
+                        echo "Warning: Failed to set SELinux boolean virt_use_nfs."
+                    fi
+                else
+                    echo "Warning: setsebool not found. Cannot set virt_use_nfs boolean."
+                fi
+            else
+                echo "nfs-utils not installed. Skipping virt_use_nfs boolean."
+            fi
+
+            # Check for recent AVC denials related to virtqemud or libvirtd.
+            # This is diagnostic only; does not fail if the daemon is not running yet.
+            if command -v ausearch >/dev/null 2>&1; then
+                echo "Checking for recent AVC denials related to libvirt daemons..."
+                AVC_HITS=$(ausearch -m avc -ts recent 2>/dev/null | grep -cE "(virtqemud|libvirtd)" || true)
+                if [ "${AVC_HITS:-0}" -gt 0 ]; then
+                    echo "Warning: ${AVC_HITS} AVC denial(s) found for virtqemud/libvirtd."
+                    echo "Review with: ausearch -m avc -ts recent | grep -E '(virtqemud|libvirtd)'"
+                else
+                    echo "No recent AVC denials found for virtqemud/libvirtd."
+                fi
+            else
+                echo "Note: ausearch not available. AVC denial check skipped."
+            fi
+        else
+            echo "SELinux is not enforcing ($SELINUX_STATUS). Skipping SELinux configuration."
+        fi
+    else
+        echo "Note: getenforce not found. SELinux not active or not installed."
+    fi
+fi
+
+# libvirt group membership
+# Fedora does not add users to the libvirt group automatically (unlike Debian postinst scripts).
+# Running this on Debian is safe: usermod -aG is additive and idempotent when already a member.
+LIBVIRT_USER="${USER:-$(logname 2>/dev/null)}"
+if getent group libvirt >/dev/null 2>&1; then
+    if [ -n "$LIBVIRT_USER" ]; then
+        if id -nG "$LIBVIRT_USER" 2>/dev/null | tr ' ' '\n' | grep -qx libvirt; then
+            echo "$LIBVIRT_USER is already a member of the libvirt group."
+        else
+            echo "Adding $LIBVIRT_USER to libvirt group..."
+            if $SUDO_CMD usermod -aG libvirt "$LIBVIRT_USER"; then
+                echo "Note: $LIBVIRT_USER added to libvirt group. You must log out and back in for group membership to take effect."
+            else
+                echo "Warning: Failed to add $LIBVIRT_USER to libvirt group."
+            fi
+        fi
+    else
+        echo "Warning: Could not determine current user. Skipping libvirt group membership."
+    fi
+else
+    echo "Note: libvirt group does not exist yet (package not installed). Skipping group membership."
+fi
+
+# firewalld check for libvirt networking (Fedora family only)
+# On Fedora, firewalld manages the libvirt network zone.
+# If firewalld is not running, virbr0 fails to start and VMs have no network.
+if grep -qiE "^ID(_LIKE)?=.*fedora" /etc/os-release 2>/dev/null; then
+    echo "--- firewalld / libvirt networking check (Fedora family) ---"
+
+    if command -v firewall-cmd >/dev/null 2>&1; then
+        # Ensure firewalld is enabled (idempotent: only enables if not already enabled)
+        if ! systemctl is-enabled --quiet firewalld 2>/dev/null; then
+            echo "Enabling firewalld..."
+            $SUDO_CMD systemctl enable firewalld
+        else
+            echo "firewalld is already enabled."
+        fi
+
+        # Ensure firewalld is started (idempotent: only starts if not already running)
+        if ! systemctl is-active --quiet firewalld 2>/dev/null; then
+            echo "Starting firewalld..."
+            if $SUDO_CMD systemctl start firewalld; then
+                echo "firewalld started successfully."
+            else
+                echo "Warning: Failed to start firewalld."
+            fi
+        else
+            echo "firewalld is already running."
+        fi
+
+        # Verify the libvirt zone exists in firewalld.
+        # libvirtd registers the 'libvirt' zone when it starts; only check if libvirt daemon is active.
+        if systemctl is-active --quiet libvirtd 2>/dev/null || systemctl is-active --quiet virtqemud 2>/dev/null; then
+            if firewall-cmd --get-zones 2>/dev/null | grep -qw libvirt; then
+                echo "firewalld libvirt zone is present."
+            else
+                echo "Warning: libvirt zone not found in firewalld. libvirt networking may be broken."
+                echo "  Check: firewall-cmd --get-zones"
+            fi
+        else
+            echo "Note: libvirtd/virtqemud not running yet. Skipping libvirt zone check."
+        fi
+    else
+        echo "Note: firewalld not installed. libvirt networking may fail on Fedora."
+        echo "  Install with: sudo dnf install firewalld"
+    fi
 fi
 {{ end }}
 

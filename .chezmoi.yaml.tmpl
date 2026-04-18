@@ -58,9 +58,6 @@ data:
     is_wsl: {{ $is_wsl }}
     role: {{ $role | quote }}
     hostname: {{ $hostname_selection | quote }}
-    is_server: {{ has $role (list "hydra" "cyclops" "kraken" "cerberus" "golem" "minion" "siren") }}
-    is_workstation: {{ has $role (list "centaur" "chimera" "griffin") }}
-    is_virtualization_host: {{ has $role (list "hydra" "griffin") }}
 
     # ===== ROLE TAXONOMY (Single Source of Truth) =====
     # This section defines ALL roles and their capabilities
@@ -169,13 +166,13 @@ data:
 
     # ===== ROLE CAPABILITY CHECKS (Helper functions for templates) =====
     # Usage in templates: {{`{{ if .has_master_key }}...{{ end }}`}}
+    # CANONICAL: is_server, is_workstation, is_virtualization_host are defined here only.
 
     has_master_key: {{ has $role (list "centaur" "chimera") }}
     has_server_key: {{ has $role (list "chimera" "hydra" "griffin" "cyclops" "kraken" "cerberus" "golem" "minion" "siren") }}
     receives_ssh: {{ has $role (list "chimera" "hydra" "griffin" "cyclops" "kraken" "cerberus" "golem" "minion" "siren") }}
     is_server: {{ has $role (list "hydra" "cyclops" "kraken" "cerberus" "golem" "minion" "siren") }}
     is_workstation: {{ has $role (list "centaur" "chimera" "griffin") }}
-    is_virtualization_host: {{ has $role (list "hydra" "griffin") }}
     is_virtualization_host: {{ has $role (list "hydra" "griffin") }}
 
     # Aliases

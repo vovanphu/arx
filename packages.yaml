@@ -151,7 +151,7 @@ linux:
     libvirt-daemon-system:
       debian: "libvirt-daemon-system"
       ubuntu: "libvirt-daemon-system"
-      fedora: "libvirt-daemon-system"
+      fedora: "libvirt-daemon-kvm"
       default: "libvirt-daemon-system"
 
     qemu-kvm:
@@ -450,7 +450,7 @@ linux:
       griffin: # MobileLab (Fedora + KVM)
         - "openssh-server"
         - "qemu-kvm"
-        - "libvirt-daemon-system"
+        - "libvirt-daemon-kvm"
         - "libvirt-client"
         - "bridge-utils"
         - "virt-manager"

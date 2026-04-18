@@ -57,16 +57,16 @@ We categorize machines using a mythological naming convention that reflects thei
 
 | Role | Name | Concept | Primary Function |
 | :--- | :--- | :--- | :--- |
-| **Commander** | **`centaur`** | *Chiron (The Wise)* | **Control Center**. Laptop/Mac. Admin tools, Master Keys. |
-| **Workstation** | **`chimera`** | *The Hybrid* | **Heavy Lifter**. Windows+WSL. Dev tools, Docker. |
-| **HomeLab** | **`hydra`** | *The Undying* | **Proxmox Cluster**. Bare metal virtualization. Minimal host. |
-| **MobileLab** | **`griffin`** | *The Guardian* | **Debian Laptop**. Portable KVM virtualization. |
-| **Storage** | **`kraken`** | *The Deep* | **Ceph Cluster**. Distributed storage nodes. |
-| **Server** | **`cyclops`** | *The Strong* | **Generic Server**. Headless, single-purpose. |
-| **Bastion** | **`cerberus`** | *The Gatekeeper* | **Gateway**. VPN/SSH Jump host. Hardened. |
-| **Database** | **`golem`** | *The Construct* | **Stateful Node**. Postgres/Redis storage. |
-| **Worker** | **`minion`** | *The Laborer* | **Compute Node**. CI Runners, Docker Swarm workers. |
-| **Web** | **`siren`** | *The Allure* | **Frontend**. Nginx/Proxy. Public facing. |
+| **Workstation** | **`centaur`** | *Chiron (The Wise)* | **Portable Admin Workstation**. Laptop/Mac. Admin tools, master keys. No incoming SSH. |
+| **Workstation** | **`chimera`** | *The Hybrid* | **Primary Dev Workstation**. Windows+WSL. Full dev capabilities. |
+| **Workstation** | **`griffin`** | *The Guardian* | **Secondary Workstation**. Desktop. Dev tools, accepts SSH connections. |
+| **Server** | **`hydra`** | *The Undying* | **Main Application Server**. Primary production server. |
+| **Server** | **`cyclops`** | *The Strong* | **Application Server**. App-specific server (web, API). Headless, single-purpose. |
+| **Database** | **`kraken`** | *The Deep* | **Database Server**. PostgreSQL, MySQL, MongoDB. |
+| **Security** | **`cerberus`** | *The Gatekeeper* | **Security/Firewall Server**. Firewall, VPN gateway, reverse proxy. Hardened. |
+| **Build/CI** | **`golem`** | *The Construct* | **Build/CI Server**. Jenkins, GitLab Runner, GitHub Actions runner. |
+| **Worker** | **`minion`** | *The Laborer* | **Compute Node**. Kubernetes node, batch processing, distributed computing. |
+| **Monitoring** | **`siren`** | *The Allure* | **Monitoring Server**. Prometheus, Grafana, alertmanager, log aggregation. |
 
 ### 3.4. Package Management Strategy
 To avoid script bloat, we decouple data from logic.
@@ -123,7 +123,8 @@ Sensitive files (like `.ssh/config`) will be stored using Chezmoi's `private_` p
 *   **Key Storage Strategy**:
     *   `commander` & `workstation`: Auto-pull `id_ed25519` (Master Ed25519 Key) from Bitwarden note `ssh-key-master-ed25519`.
     *   `mobilelab` & `server`: Auto-pull `id_ed25519_server` (Server Ed25519 Key) from Bitwarden note `ssh-key-server-ed25519`.
-    *   **Public Key Derivation**: To ensure consistency, Public Keys (`.pub`) are **not** stored in Bitwarden. Instead, a local `run_onchange_` script automatically derives them from the private keys (`ssh-keygen -y`) whenever the private key template changes.
+    *   **Public Key Derivation**: Local `.pub` files are derived from the private key via a `run_onchange_` script (`ssh-keygen -y`) whenever the private key template changes.
+    *   **Bitwarden Item Structure**: Each SSH key item (`ssh-key-master-ed25519`, `ssh-key-server-ed25519`) must have a **custom field** named `public_key` containing the full SSH public key string (e.g., `ssh-ed25519 AAAA... user@host`). The `authorized_keys.tmpl` template iterates `.fields` on each Bitwarden item and writes the value of this field to `~/.ssh/authorized_keys` on machines with the `receives_ssh` capability. If this field is absent or misnamed, `authorized_keys` will be empty and SSH access will fail silently.
     *   **Cross-Machine Access**: `workstation` automatically authorizes `commander` by pulling the Master Public Key from Bitwarden into `authorized_keys`.
     *   **Local Overrides**: The managed `config` file includes `config.local*`, allowing users to maintain unmanaged configurations alongside managed ones.
 

@@ -8,6 +8,7 @@ My personal dotfiles managed by [chezmoi](https://chezmoi.io).
 ### 1. Prerequisites
 *   **Bitwarden Account**: You need a Bitwarden account with the following items:
     *   **Secure Notes**: `ssh-key-master-ed25519` and `ssh-key-server-ed25519` (Private Keys).
+        *   Each item must have a **custom field** named exactly `public_key` containing the full SSH public key string (e.g., `ssh-ed25519 AAAA... user@host`). This field is read by `authorized_keys.tmpl` to populate `~/.ssh/authorized_keys` on machines that accept SSH connections. Without it, `authorized_keys` will be empty.
     *   **Password**: `tailscale-auth-key` (One-off key). *Generate a new key for each new machine setup. Enable "Pre-approved" so devices auto-authorize.*
 *   **Internet**: Required for package downloads.
 
