@@ -206,11 +206,15 @@ if [ -z "${BW_SESSION:-}" ]; then
 
         if [ -n "${BW_PASSWORD:-}" ] || [ "$BW_STATUS" != "unauthenticated" ]; then
             export BW_PASSWORD="$PASSWORD"
-            # Capture both stdout and stderr for diagnostics
+            # Try --passwordenv first, fall back to stdin pipe
             BW_UNLOCK_OUT=$(bw unlock --passwordenv BW_PASSWORD 2>&1)
+            if [ -z "$BW_UNLOCK_OUT" ]; then
+                BW_UNLOCK_OUT=$(echo "$PASSWORD" | bw unlock 2>&1)
+            fi
+            echo "Debug: bw unlock output: $(echo "$BW_UNLOCK_OUT" | head -3)"
             BW_SES=$(echo "$BW_UNLOCK_OUT" | grep -oE 'BW_SESSION="[^"]*"' | cut -d'"' -f2 | tail -n 1)
             if [ -z "$BW_SES" ]; then
-                echo "Debug: bw unlock full output: $BW_UNLOCK_OUT"
+                BW_SES=$(echo "$BW_UNLOCK_OUT" | grep -E '^[A-Za-z0-9+/=]{20,}$' | tail -n 1)
             fi
             # Regex validation for Base64 session key
             if [[ $BW_SES =~ ^[A-Za-z0-9+/=]{20,}$ ]]; then
