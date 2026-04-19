@@ -459,6 +459,8 @@ linux:
         - "zram-generator-defaults"
         - "tuned"
         - "ibus-unikey"
+        - "gnome-tweaks"
+        - "gnome-extensions-app"
       cyclops: # General Purpose Server
         - "openssh-server"
         - "nginx"
