@@ -434,8 +434,8 @@ gpgkey=https://pkg.cloudflareclient.com/pubkey.gpg
 EOF
             fi
             sudo dnf install -y cloudflare-warp
-            sudo systemctl enable --now warp-svc
-            echo "Cloudflare WARP installed. Run: warp-cli registration new"
+            sudo systemctl enable warp-svc
+            echo "Cloudflare WARP installed. Start manually: sudo systemctl start warp-svc && warp-cli registration new"
         else
             echo "Skipping Cloudflare WARP install (no sudo access)"
         fi
