@@ -419,6 +419,37 @@ fi
 {{ end }}
 
 {{ if and (eq .chezmoi.os "linux") .is_workstation }}
+# GNOME font and input settings (workstation only)
+if command -v gsettings >/dev/null 2>&1; then
+    echo "--- GNOME Settings ---"
+    gsettings set org.gnome.desktop.interface font-name 'Inter Regular 10'
+    gsettings set org.gnome.desktop.interface document-font-name 'Inter Regular 11'
+    gsettings set org.gnome.desktop.interface monospace-font-name 'MonaspaceNeon Nerd Font 11'
+    gsettings set org.gnome.desktop.wm.preferences titlebar-font 'Inter SemiBold 10'
+    gsettings set org.gnome.desktop.interface font-hinting 'slight'
+    gsettings set org.gnome.desktop.interface font-antialiasing 'rgba'
+    gsettings set org.gnome.desktop.peripherals.touchpad acceleration-profile 'flat'
+    echo "GNOME settings applied."
+fi
+
+# logind.conf: lock screen on lid close (do not suspend, keep tasks running)
+if [ -d /etc/systemd ]; then
+    echo "--- logind.conf ---"
+    LOGIND_CONF="/etc/systemd/logind.conf.d/lid.conf"
+    $SUDO_CMD mkdir -p /etc/systemd/logind.conf.d
+    if [ ! -f "$LOGIND_CONF" ] || ! grep -q "HandleLidSwitch=lock" "$LOGIND_CONF" 2>/dev/null; then
+        cat << 'EOF' | $SUDO_CMD tee "$LOGIND_CONF" > /dev/null
+[Login]
+HandleLidSwitch=lock
+HandleLidSwitchExternalPower=lock
+HandleLidSwitchDocked=lock
+EOF
+        echo "logind lid switch set to lock."
+    else
+        echo "logind lid switch already configured."
+    fi
+fi
+
 # Google Chrome -- Fedora family only (add official Google repo, then install)
 if grep -qiE "^ID(_LIKE)?=.*fedora" /etc/os-release 2>/dev/null; then
     echo "--- Google Chrome ---"
@@ -448,6 +479,34 @@ EOF
         fi
     else
         echo "Google Chrome already installed."
+    fi
+fi
+
+# VS Code -- Fedora family only (official Microsoft RPM repo)
+if grep -qiE "^ID(_LIKE)?=.*fedora" /etc/os-release 2>/dev/null; then
+    echo "--- VS Code ---"
+    if ! command -v code >/dev/null 2>&1; then
+        VSCODE_REPO="/etc/yum.repos.d/vscode.repo"
+        if [ ! -f "$VSCODE_REPO" ]; then
+            echo "Adding VS Code repo..."
+            $SUDO_CMD rpm --import https://packages.microsoft.com/keys/microsoft.asc 2>/dev/null || true
+            cat << 'EOF' | $SUDO_CMD tee "$VSCODE_REPO" > /dev/null
+[code]
+name=Visual Studio Code
+baseurl=https://packages.microsoft.com/yumrepos/vscode
+enabled=1
+gpgcheck=1
+gpgkey=https://packages.microsoft.com/keys/microsoft.asc
+EOF
+        fi
+        echo "Installing VS Code..."
+        if $SUDO_CMD dnf install -y code; then
+            echo "VS Code installed."
+        else
+            echo "Warning: Failed to install VS Code."
+        fi
+    else
+        echo "VS Code already installed."
     fi
 fi
 

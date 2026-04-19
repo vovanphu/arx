@@ -401,6 +401,49 @@ if grep -qiE "^ID(_LIKE)?=.*fedora" /etc/os-release 2>/dev/null; then
     fi
 fi
 
+# Install NVIDIA driver (Fedora only, no auto-reboot -- user must reboot manually after akmods build)
+if grep -qiE "^ID(_LIKE)?=.*fedora" /etc/os-release 2>/dev/null; then
+    if ! rpm -q akmod-nvidia >/dev/null 2>&1; then
+        echo "Installing NVIDIA driver (akmod-nvidia)..."
+        if [ "$HAVE_SUDO" = true ]; then
+            sudo dnf install -y akmod-nvidia xorg-x11-drv-nvidia-cuda nvtop
+            echo "NVIDIA driver installed. Wait 3-5 minutes for akmods to build, then reboot manually."
+        else
+            echo "Skipping NVIDIA driver install (no sudo access)"
+        fi
+    else
+        echo "NVIDIA driver already installed."
+    fi
+fi
+
+# Install Cloudflare WARP (Fedora only)
+if grep -qiE "^ID(_LIKE)?=.*fedora" /etc/os-release 2>/dev/null; then
+    if ! command -v warp-cli >/dev/null 2>&1; then
+        echo "Installing Cloudflare WARP..."
+        if [ "$HAVE_SUDO" = true ]; then
+            sudo rpm --import https://pkg.cloudflareclient.com/pubkey.gpg 2>/dev/null || true
+            WARP_REPO="/etc/yum.repos.d/cloudflare-warp.repo"
+            if [ ! -f "$WARP_REPO" ]; then
+                cat << 'EOF' | sudo tee "$WARP_REPO" > /dev/null
+[cloudflare-warp]
+name=Cloudflare WARP
+baseurl=https://pkg.cloudflareclient.com/rpm/
+enabled=1
+gpgcheck=1
+gpgkey=https://pkg.cloudflareclient.com/pubkey.gpg
+EOF
+            fi
+            sudo dnf install -y cloudflare-warp
+            sudo systemctl enable --now warp-svc
+            echo "Cloudflare WARP installed. Run: warp-cli registration new"
+        else
+            echo "Skipping Cloudflare WARP install (no sudo access)"
+        fi
+    else
+        echo "Cloudflare WARP already installed."
+    fi
+fi
+
 # Configure ibus-unikey GNOME input source after package install
 if grep -qiE "^ID(_LIKE)?=.*fedora" /etc/os-release 2>/dev/null; then
     if rpm -q ibus-unikey >/dev/null 2>&1; then
