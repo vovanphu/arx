@@ -482,6 +482,16 @@ EOF
     fi
 fi
 
+# Extension Manager (Flatpak) -- GNOME extension browser
+if grep -qiE "^ID(_LIKE)?=.*fedora" /etc/os-release 2>/dev/null; then
+    if ! flatpak info com.mattjakeman.ExtensionManager >/dev/null 2>&1; then
+        echo "Installing Extension Manager..."
+        flatpak install -y flathub com.mattjakeman.ExtensionManager || true
+    else
+        echo "Extension Manager already installed."
+    fi
+fi
+
 # VS Code -- Fedora family only (official Microsoft RPM repo)
 if grep -qiE "^ID(_LIKE)?=.*fedora" /etc/os-release 2>/dev/null; then
     echo "--- VS Code ---"
