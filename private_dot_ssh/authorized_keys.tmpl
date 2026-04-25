@@ -1,4 +1,8 @@
 {{- /* Generate authorized_keys for roles that receive SSH connections */ -}}
+{{- /* BV-2 guard: fail explicitly rather than silently writing empty file */ -}}
+{{- if not (env "BW_SESSION") -}}
+{{-   fail "BW_SESSION is required to render authorized_keys. Run install.sh instead of chezmoi apply directly." -}}
+{{- end -}}
 {{ if .receives_ssh }}
 {{   $masterKey := (bitwarden "item" "ssh-key-master-ed25519") }}
 {{   $serverKey := (bitwarden "item" "ssh-key-server-ed25519") }}

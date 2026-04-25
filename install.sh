@@ -435,6 +435,306 @@ run_packages() {
     fi
 }
 
+# --- System Configuration Functions ---
+
+configure_tailscale() {
+    if ! command -v tailscale >/dev/null 2>&1; then
+        log_skip "tailscale: binary not installed; skipping auth"
+        return 0
+    fi
+    local ts_hostname="${HOSTNAME_VAR:-$(hostname)}"
+    local ts_key=""
+    if [ -n "${BW_SESSION:-}" ]; then
+        ts_key=$(bw get password "tailscale-auth-key" 2>/dev/null || true)
+    fi
+    local ts_status
+    ts_status=$(tailscale status 2>/dev/null || true)
+    if echo "$ts_status" | grep -qiE "(Tailscale is stopped|NeedsLogin|not logged in|Logged out)" || [ -z "$ts_status" ]; then
+        if [ -z "$ts_key" ]; then
+            log_warn "tailscale: auth key not found in vault; skipping auth"
+            return 0
+        fi
+        local ts_flags="--authkey $ts_key --hostname $ts_hostname --accept-routes"
+        if [ "$IS_WSL" = "true" ]; then
+            ts_flags="$ts_flags --accept-dns=false"
+        fi
+        log_info "tailscale: authenticating as '${ts_hostname}'..."
+        if sudo tailscale up $ts_flags; then
+            log_info "tailscale: connected"
+        else
+            log_warn "tailscale: auth failed; check key and daemon status"
+        fi
+    else
+        log_info "tailscale: already logged in; updating hostname..."
+        sudo tailscale set --hostname "$ts_hostname" 2>/dev/null || true
+    fi
+}
+
+configure_wsl() {
+    [ "$IS_WSL" = "true" ] || return 0
+    local wsl_conf="/etc/wsl.conf"
+    if ! grep -iq "\[network\]" "$wsl_conf" 2>/dev/null; then
+        printf '\n[network]\n' | sudo tee -a "$wsl_conf" > /dev/null
+    fi
+    if grep -iq "hostname[[:space:]]*=" "$wsl_conf" 2>/dev/null; then
+        sudo sed -i '/^hostname[[:space:]]*=/d' "$wsl_conf"
+    fi
+    if ! grep -iq "generateHosts[[:space:]]*=" "$wsl_conf" 2>/dev/null; then
+        sudo sed -i '/\[network\]/a generateHosts=true' "$wsl_conf"
+    else
+        sudo sed -i 's/^generateHosts[[:space:]]*=.*/generateHosts=true/' "$wsl_conf"
+    fi
+    if ! grep -iq "generateResolvConf[[:space:]]*=" "$wsl_conf" 2>/dev/null; then
+        sudo sed -i '/\[network\]/a generateResolvConf=true' "$wsl_conf"
+    else
+        sudo sed -i 's/^generateResolvConf[[:space:]]*=.*/generateResolvConf=true/' "$wsl_conf"
+    fi
+    if grep -iq "generateResolvConf[[:space:]]*=[[:space:]]*true" "$wsl_conf" 2>/dev/null; then
+        if [ ! -L /etc/resolv.conf ] || [ ! -e /etc/resolv.conf ]; then
+            sudo chattr -i /etc/resolv.conf 2>/dev/null || true
+            sudo rm -f /etc/resolv.conf
+        fi
+    fi
+    log_info "wsl: /etc/wsl.conf updated; run 'wsl --shutdown' in Windows to apply"
+}
+
+configure_ssh_server_linux() {
+    if [ "$RECEIVES_SSH" != "true" ]; then
+        log_skip "ssh-server: RECEIVES_SSH=false for role '${ROLE:-}'; skipping"
+        return 0
+    fi
+    if ! command -v sshd >/dev/null 2>&1; then
+        log_warn "ssh-server: sshd not found; install openssh-server first"
+        return 0
+    fi
+    if systemctl is-active --quiet ssh 2>/dev/null || systemctl is-active --quiet sshd 2>/dev/null; then
+        log_skip "ssh-server: already running"
+        return 0
+    fi
+    log_info "ssh-server: starting and enabling..."
+    if sudo systemctl start ssh 2>/dev/null || sudo systemctl start sshd 2>/dev/null; then
+        sudo systemctl enable ssh 2>/dev/null || sudo systemctl enable sshd 2>/dev/null || true
+        log_info "ssh-server: started and enabled"
+    else
+        log_warn "ssh-server: failed to start; check 'systemctl status sshd'"
+    fi
+}
+
+configure_zram_fedora() {
+    [ "$IS_VIRT_HOST" = "true" ] || return 0
+    sudo mkdir -p /etc/systemd/zram-generator.conf.d
+    cat <<'EOF' | sudo tee /etc/systemd/zram-generator.conf.d/zram0.conf > /dev/null
+[zram0]
+zram-size = ram
+compression-algorithm = zstd
+EOF
+    if zramctl 2>/dev/null | grep -q zram0; then
+        log_skip "zram: already running; config updated (applies on next boot)"
+    else
+        if sudo systemctl start systemd-zram-setup@zram0; then
+            log_info "zram: configured and running"
+        else
+            log_warn "zram: failed to start systemd-zram-setup@zram0"
+        fi
+    fi
+}
+
+configure_zram_debian() {
+    [ "$IS_VIRT_HOST" = "true" ] || return 0
+    [ -f /etc/default/zramswap ] && sudo cp /etc/default/zramswap /etc/default/zramswap.bak
+    cat <<'EOF' | sudo tee /etc/default/zramswap > /dev/null
+ALGO=zstd
+PERCENT=50
+EOF
+    if sudo systemctl restart zramswap; then
+        log_info "zram: configured and running"
+    else
+        log_warn "zram: failed to restart zramswap"
+    fi
+}
+
+configure_ksm_linux() {
+    [ "$IS_VIRT_HOST" = "true" ] || return 0
+    if [ ! -f /sys/kernel/mm/ksm/run ]; then
+        log_skip "ksm: not available on this kernel"
+        return 0
+    fi
+    cat <<'EOF' | sudo tee /etc/sysctl.d/99-ksm.conf > /dev/null
+kernel.mm.ksm.run = 1
+kernel.mm.ksm.sleep_millisecs = 20
+EOF
+    sudo sysctl -p /etc/sysctl.d/99-ksm.conf > /dev/null 2>&1
+    log_info "ksm: enabled ($(cat /sys/kernel/mm/ksm/pages_shared 2>/dev/null || echo 0) pages shared)"
+}
+
+configure_libvirt_group_linux() {
+    [ "$IS_VIRT_HOST" = "true" ] || return 0
+    if ! getent group libvirt >/dev/null 2>&1; then
+        log_skip "libvirt-group: group does not exist (package not installed)"
+        return 0
+    fi
+    local user="${USER:-$(whoami 2>/dev/null)}"
+    if [ -z "$user" ]; then
+        log_warn "libvirt-group: cannot determine current user"
+        return 0
+    fi
+    if id -nG "$user" 2>/dev/null | tr ' ' '\n' | grep -qx libvirt; then
+        log_skip "libvirt-group: ${user} already in libvirt group"
+        return 0
+    fi
+    if sudo usermod -aG libvirt "$user"; then
+        log_info "libvirt-group: ${user} added; log out and back in for membership to take effect"
+    else
+        log_warn "libvirt-group: failed to add ${user} to libvirt group"
+    fi
+}
+
+configure_virt_kvm_fedora() {
+    [ "$IS_VIRT_HOST" = "true" ] || return 0
+    if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce 2>/dev/null)" = "Enforcing" ]; then
+        if command -v restorecon >/dev/null 2>&1; then
+            sudo restorecon -R /var/lib/libvirt 2>/dev/null || log_warn "selinux: restorecon failed for /var/lib/libvirt"
+        fi
+        if rpm -q nfs-utils >/dev/null 2>&1 && command -v setsebool >/dev/null 2>&1; then
+            sudo setsebool -P virt_use_nfs on 2>/dev/null || log_warn "selinux: failed to set virt_use_nfs"
+        fi
+    fi
+    if command -v firewall-cmd >/dev/null 2>&1; then
+        systemctl is-enabled --quiet firewalld 2>/dev/null || sudo systemctl enable firewalld
+        if ! systemctl is-active --quiet firewalld 2>/dev/null; then
+            sudo systemctl start firewalld || log_warn "firewalld: failed to start"
+        fi
+    else
+        log_warn "firewalld: not installed; libvirt networking may fail"
+    fi
+}
+
+configure_tuned_linux() {
+    [ "$IS_VIRT_HOST" = "true" ] || return 0
+    if ! command -v tuned-adm >/dev/null 2>&1; then
+        log_skip "tuned: tuned-adm not found (not installed on this distro)"
+        return 0
+    fi
+    local current
+    current=$(tuned-adm active 2>/dev/null | grep -oP '(?<=Current active profile: ).+' || true)
+    if [ "$current" = "virtual-host" ]; then
+        log_skip "tuned: profile already set to virtual-host"
+        return 0
+    fi
+    if sudo tuned-adm profile virtual-host; then
+        log_info "tuned: profile set to virtual-host (was: ${current:-unknown})"
+    else
+        log_warn "tuned: failed to set profile to virtual-host"
+    fi
+}
+
+configure_workstation_linux() {
+    [ "$IS_WORKSTATION" = "true" ] || return 0
+    if [ -d /etc/systemd ]; then
+        local logind_conf="/etc/systemd/logind.conf.d/lid.conf"
+        sudo mkdir -p /etc/systemd/logind.conf.d
+        if [ ! -f "$logind_conf" ] || ! grep -q "HandleLidSwitch=lock" "$logind_conf" 2>/dev/null; then
+            cat <<'EOF' | sudo tee "$logind_conf" > /dev/null
+[Login]
+HandleLidSwitch=lock
+HandleLidSwitchExternalPower=lock
+HandleLidSwitchDocked=lock
+EOF
+            log_info "logind: lid switch set to lock"
+        else
+            log_skip "logind: lid switch already configured"
+        fi
+    fi
+}
+
+configure_workstation_fedora() {
+    [ "$IS_WORKSTATION" = "true" ] || return 0
+    configure_workstation_linux
+    if command -v gsettings >/dev/null 2>&1; then
+        gsettings set org.gnome.desktop.interface font-name 'Inter Regular 10'
+        gsettings set org.gnome.desktop.interface document-font-name 'Inter Regular 11'
+        gsettings set org.gnome.desktop.interface monospace-font-name 'MonaspaceNeon Nerd Font 11'
+        gsettings set org.gnome.desktop.wm.preferences titlebar-font 'Inter SemiBold 10'
+        gsettings set org.gnome.desktop.interface font-hinting 'slight'
+        gsettings set org.gnome.desktop.interface font-antialiasing 'rgba'
+        gsettings set org.gnome.desktop.peripherals.touchpad acceleration-profile 'flat'
+        log_info "gnome: settings applied"
+    fi
+}
+
+install_apps_fedora() {
+    [ "$IS_WORKSTATION" = "true" ] || return 0
+    if ! command -v google-chrome-stable >/dev/null 2>&1; then
+        local chrome_repo="/etc/yum.repos.d/google-chrome.repo"
+        if [ ! -f "$chrome_repo" ]; then
+            cat <<'EOF' | sudo tee "$chrome_repo" > /dev/null
+[google-chrome]
+name=google-chrome
+baseurl=https://dl.google.com/linux/chrome/rpm/stable/x86_64
+enabled=1
+gpgcheck=1
+gpgkey=https://dl.google.com/linux/linux_signing_key.pub
+EOF
+        fi
+        if sudo dnf install -y google-chrome-stable; then
+            sudo rpm --import https://dl.google.com/linux/linux_signing_key.pub 2>/dev/null || true
+            log_info "chrome: installed"
+        else
+            log_warn "chrome: install failed"
+        fi
+    else
+        log_skip "chrome: already installed"
+    fi
+
+    if ! flatpak info com.mattjakeman.ExtensionManager >/dev/null 2>&1; then
+        flatpak install -y flathub com.mattjakeman.ExtensionManager 2>/dev/null || \
+            log_warn "extension-manager: flatpak install failed"
+    else
+        log_skip "extension-manager: already installed"
+    fi
+
+    if ! command -v code >/dev/null 2>&1; then
+        local vscode_repo="/etc/yum.repos.d/vscode.repo"
+        if [ ! -f "$vscode_repo" ]; then
+            sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc 2>/dev/null || true
+            cat <<'EOF' | sudo tee "$vscode_repo" > /dev/null
+[code]
+name=Visual Studio Code
+baseurl=https://packages.microsoft.com/yumrepos/vscode
+enabled=1
+gpgcheck=1
+gpgkey=https://packages.microsoft.com/keys/microsoft.asc
+EOF
+        fi
+        if sudo dnf install -y code; then
+            log_info "vscode: installed"
+        else
+            log_warn "vscode: install failed"
+        fi
+    else
+        log_skip "vscode: already installed"
+    fi
+}
+
+# --- System Configuration: Orchestrator ---
+configure_system() {
+    echo "--- System Configuration ---"
+    configure_tailscale
+    configure_wsl
+    run_layer configure_ssh_server
+    if [ "$IS_VIRT_HOST" = "true" ]; then
+        run_layer configure_zram
+        configure_ksm_linux
+        run_layer configure_virt_kvm
+        configure_libvirt_group_linux
+        configure_tuned_linux
+    fi
+    if [ "$IS_WORKSTATION" = "true" ]; then
+        run_layer configure_workstation
+        run_layer install_apps
+    fi
+}
+
 # --- Remote Bootstrap Logic ---
 if [ ! -f "install.sh" ]; then 
     echo "Running in Remote Bootstrap Mode..."
@@ -823,6 +1123,8 @@ if ! "$CHEZMOI_BIN" apply --source="$SCRIPT_DIR" --force; then
     echo "Warning: Chezmoi apply encountered errors. Some dotfiles may not be configured correctly."
     echo "You can re-run: chezmoi apply --force"
 fi
+
+configure_system
 
 # Security: Clear sensitive environment variables
 if [ -n "$BW_SESSION" ]; then
