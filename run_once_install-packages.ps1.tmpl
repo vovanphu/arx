@@ -102,6 +102,26 @@ foreach ($package in $packages) {
     }
 }
 
+{{ if .is_gaming }}
+# GPU vendor detection -- install appropriate driver software based on hardware
+Write-Host "`n--- GPU Software ---" -ForegroundColor Cyan
+$gpu = Get-WmiObject Win32_VideoController |
+    Where-Object { $_.Name -notmatch "Microsoft|Basic Display|Remote|Virtual" } |
+    Select-Object -First 1
+if ($gpu) {
+    Write-Host "Detected GPU: $($gpu.Name)" -ForegroundColor Gray
+    if ($gpu.Name -match "NVIDIA|GeForce|Quadro|RTX|GTX") {
+        Install-Package "Nvidia.GeForceExperience"
+    } elseif ($gpu.Name -match "AMD|Radeon|RX ") {
+        Install-Package "AMD.AMDSoftwareAdrenalin"
+    } else {
+        Write-Host "  [?] GPU vendor not recognized. Install driver software manually." -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "  [?] No discrete GPU detected. Skipping GPU software." -ForegroundColor Yellow
+}
+{{ end }}
+
 # Refresh Environment PATH
 Write-Host "Refreshing Environment PATH..." -ForegroundColor Gray
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")

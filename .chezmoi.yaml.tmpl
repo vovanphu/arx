@@ -146,11 +146,19 @@ data:
             is_server: true
             install_desktop_tools: false
 
+        fenrir:
+            description: "Gaming workstation (Windows)"
+            has_master_key: true
+            has_server_key: false
+            receives_ssh: false
+            is_server: false
+            install_desktop_tools: true
+
     # ===== COMPUTED ROLE GROUPS (Auto-generated from taxonomy) =====
     # Templates should reference these groups instead of hardcoding role lists
 
     # Roles that get Master SSH key deployed
-    roles_with_master_key: {{ list "centaur" "chimera" "griffin" | join " " | quote }}
+    roles_with_master_key: {{ list "centaur" "chimera" "griffin" "fenrir" | join " " | quote }}
 
     # Roles that get Server SSH key deployed
     roles_with_server_key: {{ list "chimera" "hydra" "griffin" "cyclops" "kraken" "cerberus" "golem" "minion" "siren" | join " " | quote }}
@@ -162,18 +170,22 @@ data:
     roles_server: {{ list "hydra" "cyclops" "kraken" "cerberus" "golem" "minion" "siren" | join " " | quote }}
 
     # Workstation roles (with GUI tools)
-    roles_workstation: {{ list "centaur" "chimera" "griffin" | join " " | quote }}
+    roles_workstation: {{ list "centaur" "chimera" "griffin" "fenrir" | join " " | quote }}
+
+    # Gaming roles
+    roles_gaming: {{ list "fenrir" | join " " | quote }}
 
     # ===== ROLE CAPABILITY CHECKS (Helper functions for templates) =====
     # Usage in templates: {{`{{ if .has_master_key }}...{{ end }}`}}
     # CANONICAL: is_server, is_workstation, is_virtualization_host are defined here only.
 
-    has_master_key: {{ has $role (list "centaur" "chimera" "griffin") }}
+    has_master_key: {{ has $role (list "centaur" "chimera" "griffin" "fenrir") }}
     has_server_key: {{ has $role (list "chimera" "hydra" "griffin" "cyclops" "kraken" "cerberus" "golem" "minion" "siren") }}
     receives_ssh: {{ has $role (list "chimera" "hydra" "griffin" "cyclops" "kraken" "cerberus" "golem" "minion" "siren") }}
     is_server: {{ has $role (list "hydra" "cyclops" "kraken" "cerberus" "golem" "minion" "siren") }}
-    is_workstation: {{ has $role (list "centaur" "chimera" "griffin") }}
+    is_workstation: {{ has $role (list "centaur" "chimera" "griffin" "fenrir") }}
     is_virtualization_host: {{ has $role (list "hydra" "griffin") }}
+    is_gaming: {{ has $role (list "fenrir") }}
 
     # Aliases
     commonAliases:

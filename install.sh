@@ -92,6 +92,8 @@ derive_capabilities() {
             IS_SERVER=true
             IS_VIRT_HOST=true
             RECEIVES_SSH=true ;;
+        fenrir)
+            IS_WORKSTATION=true ;;
         cyclops|cerberus|golem|minion|siren|kraken)
             IS_SERVER=true
             RECEIVES_SSH=true ;;

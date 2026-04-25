@@ -65,6 +65,12 @@ name_pools:
     - "calypso"
     - "circe"
     - "echo"
+  fenrir: # Gaming - Norse wolves
+    - "skoll"      # Wolf chasing the Sun
+    - "hati"       # Wolf chasing the Moon
+    - "garm"       # Guardian of Helheim
+    - "managarm"   # Moon Hound
+    - "jormungandr" # World Serpent (Fenrir's sibling)
 
 windows:
   common:
@@ -101,6 +107,12 @@ windows:
       - "Microsoft.OpenSSH.Beta"
     cyclops:
       - "Microsoft.OpenSSH.Beta"
+    fenrir: # Gaming workstation (GPU software installed at runtime via hardware detection)
+      - "Valve.Steam"
+      - "EpicGames.EpicGamesLauncher"
+      - "Discord.Discord"
+      - "MSI.Afterburner"
+      - "HWiNFO.HWiNFO"
 
 linux:
   # Distribution detection and package manager abstraction
