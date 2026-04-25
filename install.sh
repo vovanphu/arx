@@ -6,6 +6,10 @@
 REPO_URL="${ARX_REPO_URL:-https://github.com/vovanphu/arx.git}"
 CHEZMOI_INSTALL_URL="${CHEZMOI_URL:-https://get.chezmoi.io}"
 BITWARDEN_CLI_URL="${BW_CLI_URL:-https://vault.bitwarden.com/download/?app=cli&platform=linux}"
+TAILSCALE_INSTALL_URL="${TAILSCALE_URL:-https://tailscale.com/install.sh}"
+STARSHIP_INSTALL_URL="${STARSHIP_URL:-https://starship.rs/install.sh}"
+NERD_FONT_FIRACODE_URL="${NERD_FONT_FIRACODE_URL:-https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip}"
+NERD_FONT_MONASPACE_URL="${NERD_FONT_MONASPACE_URL:-https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Monaspace.zip}"
 
 # --- Global Settings ---
 # Cleanup function to be called on exit
@@ -25,6 +29,411 @@ cleanup() {
 trap cleanup EXIT INT TERM
 SUDO_KEEPALIVE_PID=""
 BW_KEEPALIVE_PID=""
+WARN_LOG=()
+HAVE_SUDO=false
+
+# --- Logging Helpers ---
+log_info()  { echo "INFO: $*"; }
+log_warn()  { echo "WARN: $*"; WARN_LOG+=("$*"); }
+log_error() { echo "ERROR: $*"; }
+log_skip()  { echo "SKIP: $*"; }
+
+# --- Environment Detection ---
+# Sets: PLATFORM, DISTRO, DISTRO_FAMILY, DISTRO_VERSION, IS_WSL
+detect_environment() {
+    PLATFORM="linux"
+    IS_WSL=false
+    if [ -f /proc/version ] && grep -qi microsoft /proc/version 2>/dev/null; then
+        IS_WSL=true
+    fi
+
+    DISTRO="unknown"
+    DISTRO_FAMILY="unknown"
+    DISTRO_VERSION=""
+
+    if [ -f /etc/os-release ]; then
+        # shellcheck disable=SC1091
+        . /etc/os-release
+        DISTRO="${ID:-unknown}"
+        DISTRO_VERSION="${VERSION_ID:-}"
+        if [ -n "${ID_LIKE:-}" ]; then
+            DISTRO_FAMILY="${ID_LIKE%% *}"
+        else
+            DISTRO_FAMILY="${ID:-unknown}"
+        fi
+        case "$DISTRO_FAMILY" in
+            debian|ubuntu)        DISTRO_FAMILY="debian" ;;
+            fedora|rhel|centos)   DISTRO_FAMILY="fedora" ;;
+        esac
+    fi
+}
+
+# --- Capability Derivation ---
+# Sets: IS_WORKSTATION, IS_SERVER, IS_VIRT_HOST, RECEIVES_SSH
+# Must be called after ROLE is resolved.
+derive_capabilities() {
+    local role="${1:-}"
+    IS_WORKSTATION=false
+    IS_SERVER=false
+    IS_VIRT_HOST=false
+    RECEIVES_SSH=false
+
+    case "$role" in
+        centaur)
+            IS_WORKSTATION=true ;;
+        chimera)
+            IS_WORKSTATION=true
+            RECEIVES_SSH=true ;;
+        griffin)
+            IS_WORKSTATION=true
+            IS_VIRT_HOST=true
+            RECEIVES_SSH=true ;;
+        hydra)
+            IS_SERVER=true
+            IS_VIRT_HOST=true
+            RECEIVES_SSH=true ;;
+        cyclops|cerberus|golem|minion|siren|kraken)
+            IS_SERVER=true
+            RECEIVES_SSH=true ;;
+        "")
+            ;;
+        *)
+            log_warn "derive_capabilities: unknown role '${role}'" ;;
+    esac
+}
+
+# --- Dispatch ---
+# run_layer <func_base> [args...]
+# Resolution order: <func_base>_<DISTRO> -> <func_base>_<DISTRO_FAMILY> -> <func_base>_linux -> <func_base>_all
+# Calls the first match found. Logs which function was dispatched.
+run_layer() {
+    local func_base="$1"
+    shift
+    local suffix fn
+    for suffix in "${DISTRO}" "${DISTRO_FAMILY}" "linux" "all"; do
+        fn="${func_base}_${suffix}"
+        if declare -f "$fn" > /dev/null 2>&1; then
+            log_info "dispatch: ${fn}"
+            "$fn" "$@"
+            return $?
+        fi
+    done
+    log_skip "no handler: ${func_base} on ${DISTRO} (${DISTRO_FAMILY})"
+    return 0
+}
+
+# --- Package Name Resolver ---
+# Translates canonical (debian) package names to distro-specific names.
+resolve_pkg_name() {
+    local pkg="$1"
+    case "${DISTRO_FAMILY}:${pkg}" in
+        fedora:libvirt-clients)       echo "libvirt-client" ;;
+        fedora:libvirt-daemon-system) echo "libvirt-daemon-kvm" ;;
+        fedora:zram-tools)            echo "zram-generator-defaults" ;;
+        fedora:ksmtuned)              echo "tuned" ;;
+        fedora:docker.io)             echo "docker" ;;
+        fedora:postgresql-client)     echo "postgresql" ;;
+        fedora:redis-tools)           echo "redis" ;;
+        fedora:ceph-common)           echo "ceph" ;;
+        fedora:ufw)                   echo "" ;;
+        *)                            echo "$pkg" ;;
+    esac
+}
+
+# pkg_install: install packages via the distro package manager.
+# Accepts canonical (debian) names; resolve_pkg_name handles translation.
+# DNF groups (prefix @) handled separately. Logs WARN on failure, skips if no sudo.
+pkg_install() {
+    if [ "$HAVE_SUDO" != "true" ]; then
+        log_warn "pkg_install: sudo not available; skipping: $*"
+        return 0
+    fi
+    local regular_pkgs=() group_pkgs=()
+    local pkg resolved
+    for pkg in "$@"; do
+        resolved=$(resolve_pkg_name "$pkg")
+        [ -z "$resolved" ] && continue
+        if [[ "$resolved" == @* ]]; then
+            group_pkgs+=("$resolved")
+        else
+            regular_pkgs+=("$resolved")
+        fi
+    done
+    if [ "$DISTRO_FAMILY" = "debian" ]; then
+        if [ "${#regular_pkgs[@]}" -gt 0 ]; then
+            if ! sudo apt-get install -y "${regular_pkgs[@]}"; then
+                log_warn "apt: failed to install some packages: ${regular_pkgs[*]}"
+            fi
+        fi
+    elif [ "$DISTRO_FAMILY" = "fedora" ]; then
+        if [ "${#regular_pkgs[@]}" -gt 0 ]; then
+            if ! sudo dnf install -y "${regular_pkgs[@]}"; then
+                log_warn "dnf: failed to install some packages: ${regular_pkgs[*]}"
+            fi
+        fi
+        if [ "${#group_pkgs[@]}" -gt 0 ]; then
+            if ! sudo dnf groupinstall -y "${group_pkgs[@]}"; then
+                log_warn "dnf: failed to install groups: ${group_pkgs[*]}"
+            fi
+        fi
+    else
+        log_warn "pkg_install: unsupported distro family '${DISTRO_FAMILY}'; skipping: $*"
+    fi
+}
+
+# --- Package Install: Distro Layers ---
+# Each function sets up repos, refreshes cache, and installs common packages.
+# ubuntu calls debian (explicit parent chain).
+
+install_packages_debian() {
+    sudo apt-get update || log_warn "apt-get update failed"
+    pkg_install git curl
+}
+
+install_packages_ubuntu() {
+    if ! grep -qrE "^deb.* universe" /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null; then
+        sudo add-apt-repository -y universe 2>/dev/null || log_warn "add-apt-repository universe failed"
+    fi
+    install_packages_debian
+}
+
+install_packages_fedora() {
+    sudo dnf makecache --refresh || log_warn "dnf makecache failed"
+    pkg_install git curl
+}
+
+install_packages_centos() {
+    if ! rpm -q epel-release >/dev/null 2>&1; then
+        sudo dnf install -y epel-release || log_warn "EPEL install failed; some packages may not be available"
+    fi
+    install_packages_fedora
+}
+
+install_packages_rocky() {
+    if ! rpm -q epel-release >/dev/null 2>&1; then
+        sudo dnf install -y epel-release || log_warn "EPEL install failed"
+    fi
+    sudo dnf config-manager --set-enabled crb 2>/dev/null || true
+    install_packages_fedora
+}
+
+# --- Tailscale Binary Install ---
+install_tailscale_binary() {
+    if command -v tailscale >/dev/null 2>&1; then
+        log_skip "tailscale: already installed"
+        return 0
+    fi
+    log_info "installing Tailscale binary..."
+    if ! curl -fsSL "$TAILSCALE_INSTALL_URL" | sh; then
+        if command -v tailscale >/dev/null 2>&1; then
+            log_warn "tailscale: installer reported error but binary found; continuing"
+        else
+            log_warn "tailscale: install failed; run installer manually"
+        fi
+    fi
+}
+
+# --- RPM Fusion (Fedora workstation) ---
+install_rpm_fusion() {
+    if sudo dnf repolist 2>/dev/null | grep -q "rpmfusion"; then
+        log_skip "rpm-fusion: already enabled"
+        return 0
+    fi
+    log_info "enabling RPM Fusion repositories..."
+    if ! sudo dnf install -y \
+        "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm" \
+        "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm"; then
+        log_warn "rpm-fusion: install failed"
+        return 0
+    fi
+    sudo dnf config-manager --set-enabled fedora-cisco-openh264 2>/dev/null || true
+}
+
+# --- Nerd Fonts (workstation) ---
+install_nerd_fonts() {
+    local font_dir="$HOME/.local/share/fonts"
+    mkdir -p "$font_dir"
+    pkg_install unzip fontconfig
+
+    if [ ! -f "$font_dir/MonaspaceNeonNerdFont-Regular.otf" ]; then
+        log_info "installing Monaspace Nerd Font..."
+        if curl -fLo /tmp/Monaspace.zip "$NERD_FONT_MONASPACE_URL"; then
+            unzip -o -q /tmp/Monaspace.zip -d "$font_dir"
+            rm /tmp/Monaspace.zip
+        else
+            log_warn "nerd-fonts: Monaspace download failed"
+        fi
+    else
+        log_skip "nerd-fonts: Monaspace already installed"
+    fi
+
+    if [ ! -f "$font_dir/FiraCodeNerdFont-Regular.ttf" ]; then
+        log_info "installing FiraCode Nerd Font..."
+        if curl -fLo /tmp/FiraCode.zip "$NERD_FONT_FIRACODE_URL"; then
+            unzip -o -q /tmp/FiraCode.zip -d "$font_dir"
+            rm /tmp/FiraCode.zip
+        else
+            log_warn "nerd-fonts: FiraCode download failed"
+        fi
+    else
+        log_skip "nerd-fonts: FiraCode already installed"
+    fi
+
+    if command -v fc-cache >/dev/null 2>&1; then
+        fc-cache -f "$font_dir" 2>/dev/null || true
+    fi
+}
+
+# --- Fedora Workstation Extras ---
+install_inter_font_fedora() {
+    if rpm -q inter-fonts >/dev/null 2>&1; then
+        log_skip "inter-fonts: already installed"
+        return 0
+    fi
+    log_info "installing Inter font via COPR..."
+    sudo dnf copr enable -y burhanverse/inter-fonts 2>/dev/null || { log_warn "inter-fonts: COPR enable failed"; return 0; }
+    sudo dnf install -y inter-fonts || log_warn "inter-fonts: install failed"
+}
+
+install_nvidia_driver_fedora() {
+    if rpm -q akmod-nvidia >/dev/null 2>&1; then
+        log_skip "nvidia: akmod-nvidia already installed"
+        return 0
+    fi
+    log_info "installing NVIDIA driver (akmod-nvidia)..."
+    if ! sudo dnf install -y akmod-nvidia xorg-x11-drv-nvidia-cuda nvtop; then
+        log_warn "nvidia: driver install failed"
+        return 0
+    fi
+    log_info "nvidia: wait 3-5 minutes for akmods to build, then reboot manually"
+}
+
+install_cloudflare_warp_fedora() {
+    if command -v warp-cli >/dev/null 2>&1; then
+        log_skip "cloudflare-warp: already installed"
+        return 0
+    fi
+    log_info "installing Cloudflare WARP..."
+    sudo rpm --import https://pkg.cloudflareclient.com/pubkey.gpg 2>/dev/null || true
+    local warp_repo="/etc/yum.repos.d/cloudflare-warp.repo"
+    if [ ! -f "$warp_repo" ]; then
+        cat <<'EOF' | sudo tee "$warp_repo" > /dev/null
+[cloudflare-warp]
+name=Cloudflare WARP
+baseurl=https://pkg.cloudflareclient.com/rpm/
+enabled=1
+gpgcheck=1
+gpgkey=https://pkg.cloudflareclient.com/pubkey.gpg
+EOF
+    fi
+    if ! sudo dnf install -y cloudflare-warp; then
+        log_warn "cloudflare-warp: install failed"
+        return 0
+    fi
+    sudo systemctl enable warp-svc 2>/dev/null || true
+    log_info "cloudflare-warp: register via: warp-cli registration new"
+}
+
+# --- Package Install: Purpose Layers ---
+install_packages_workstation() {
+    [ "$IS_WORKSTATION" = "true" ] || return 0
+    pkg_install neovim ripgrep fzf zoxide
+    if ! command -v starship >/dev/null 2>&1; then
+        curl -sS "$STARSHIP_INSTALL_URL" | sh -s -- -y || log_warn "starship: install failed"
+    else
+        log_skip "starship: already installed"
+    fi
+    install_nerd_fonts
+    if [ "$DISTRO_FAMILY" = "fedora" ]; then
+        install_rpm_fusion
+        install_inter_font_fedora
+        install_nvidia_driver_fedora
+        install_cloudflare_warp_fedora
+    fi
+    if [ "$DISTRO" = "debian" ]; then
+        if ! grep -q "non-free" /etc/apt/sources.list 2>/dev/null; then
+            sudo sed -i 's/main$/main contrib non-free non-free-firmware/g' /etc/apt/sources.list
+            sudo apt-get update || true
+        fi
+    fi
+}
+
+install_packages_server() {
+    [ "$IS_SERVER" = "true" ] || return 0
+    pkg_install htop ncdu
+}
+
+# --- Package Install: Role Layers ---
+install_packages_centaur() {
+    pkg_install ansible
+}
+
+install_packages_chimera() {
+    pkg_install openssh-server gcc make
+    if [ "$DISTRO_FAMILY" = "debian" ]; then
+        pkg_install build-essential g++
+    elif [ "$DISTRO_FAMILY" = "fedora" ]; then
+        pkg_install "@Development Tools" gcc-c++
+    fi
+}
+
+install_packages_griffin() {
+    pkg_install openssh-server qemu-kvm libvirt-daemon-system libvirt-clients \
+        bridge-utils virt-manager htop ncdu zram-tools ksmtuned
+    if [ "$DISTRO_FAMILY" = "fedora" ]; then
+        pkg_install ibus-unikey gnome-tweaks gnome-extensions-app
+    fi
+}
+
+install_packages_hydra() {
+    pkg_install openssh-server htop ncdu neofetch zram-tools ksmtuned
+}
+
+install_packages_cyclops() {
+    pkg_install openssh-server nginx net-tools
+}
+
+install_packages_cerberus() {
+    pkg_install openssh-server fail2ban wireguard-tools
+    if [ "$DISTRO_FAMILY" = "debian" ]; then
+        pkg_install ufw
+    elif [ "$DISTRO_FAMILY" = "fedora" ]; then
+        pkg_install firewalld
+    fi
+}
+
+install_packages_golem() {
+    pkg_install openssh-server postgresql-client redis-tools
+}
+
+install_packages_minion() {
+    pkg_install openssh-server htop docker.io
+    if [ "$DISTRO_FAMILY" = "fedora" ]; then
+        pkg_install docker-compose
+    fi
+}
+
+install_packages_siren() {
+    pkg_install openssh-server nginx certbot python3-certbot-nginx
+}
+
+install_packages_kraken() {
+    pkg_install openssh-server ceph-common xfsprogs smartmontools
+}
+
+# --- Package Install: Orchestrator ---
+run_packages() {
+    echo "--- Package Installation ---"
+    run_layer install_packages        # repo setup + cache update + git/curl
+    install_tailscale_binary
+    install_packages_workstation      # IS_WORKSTATION guard inside
+    install_packages_server           # IS_SERVER guard inside
+    local fn="install_packages_${ROLE:-}"
+    if [ -n "${ROLE:-}" ] && declare -f "$fn" > /dev/null 2>&1; then
+        log_info "role packages: ${fn}"
+        "$fn"
+    fi
+}
 
 # --- Remote Bootstrap Logic ---
 if [ ! -f "install.sh" ]; then 
@@ -90,6 +499,38 @@ fi
 export PATH="$HOME/.local/bin:$PATH"
 CHEZMOI_BIN="$HOME/.local/bin/chezmoi"
 
+# --- Detect-only mode ---
+# Usage: bash install.sh --detect
+# Prints environment tuple and capability flags without running any provisioning.
+if [ "${1:-}" = "--detect" ]; then
+    detect_environment
+    echo "PLATFORM=$PLATFORM"
+    echo "DISTRO=$DISTRO"
+    echo "DISTRO_FAMILY=$DISTRO_FAMILY"
+    echo "DISTRO_VERSION=$DISTRO_VERSION"
+    echo "IS_WSL=$IS_WSL"
+    echo ""
+    _DETECT_ROLE="${ROLE:-}"
+    if [ -z "$_DETECT_ROLE" ] && [ -f ".env" ] && [ ! -L ".env" ]; then
+        _DETECT_ROLE=$(grep "^ROLE=" .env | head -n1 | cut -d'=' -f2- | \
+            sed -e "s/#.*$//" -e "s/^[[:space:]]*//" -e "s/[[:space:]]*$//" \
+                -e "s/^['\"]//" -e "s/['\"]$//")
+    fi
+    if [ -n "$_DETECT_ROLE" ]; then
+        derive_capabilities "$_DETECT_ROLE"
+        echo "ROLE=$_DETECT_ROLE"
+        echo "IS_WORKSTATION=$IS_WORKSTATION"
+        echo "IS_SERVER=$IS_SERVER"
+        echo "IS_VIRT_HOST=$IS_VIRT_HOST"
+        echo "RECEIVES_SSH=$RECEIVES_SSH"
+    else
+        echo "ROLE=(not set -- pass ROLE=<role> env var to see capabilities)"
+    fi
+    exit 0
+fi
+
+detect_environment
+
 # --- Sudo Session Bootstrap ---
 SUDO_PASSWORD="${SUDO_PASSWORD:-}"
 if [ -z "$SUDO_PASSWORD" ] && [ -f ".env" ] && [ ! -L ".env" ]; then
@@ -103,6 +544,7 @@ if [ -n "$SUDO_PASSWORD" ]; then
         # Keepalive: refresh sudo timestamp every 60s so session does not expire mid-install
         ( while true; do sudo -n true 2>/dev/null; sleep 60; done ) &
         SUDO_KEEPALIVE_PID=$!
+        HAVE_SUDO=true
     else
         echo "Warning: SUDO_PASSWORD provided but sudo authentication failed. Continuing without cached session."
     fi
@@ -263,6 +705,7 @@ if [ "$(uname -s)" = "Linux" ] && [ "$(id -u)" -ne 0 ]; then
             # This allows chezmoi subprocesses to use sudo without password
             ( while true; do sudo -v; sleep 50; done ) &
             SUDO_KEEPALIVE_PID=$!
+            HAVE_SUDO=true
         else
             # Sudo failed, try to add user to sudo group with su
             echo "✗ Sudo authentication failed (user not in sudo group or wrong password)."
@@ -322,6 +765,7 @@ export ROLE="$ROLE_VAR"
 export HOSTNAME="$HOSTNAME_VAR"
 export USER_NAME="$USER_NAME_VAR"
 export EMAIL_ADDRESS="$EMAIL_ADDRESS_VAR"
+derive_capabilities "$ROLE_VAR"
 
 if [ -n "$ROLE_VAR" ] || [ -n "$HOSTNAME_VAR" ] || [ -n "$EMAIL_ADDRESS_VAR" ]; then
     echo "Baking environment variables into template context..."
@@ -329,6 +773,8 @@ if [ -n "$ROLE_VAR" ] || [ -n "$HOSTNAME_VAR" ] || [ -n "$EMAIL_ADDRESS_VAR" ]; 
     [ -n "$ROLE_VAR" ]          && echo "  > ROLE : $ROLE_VAR"
     [ -n "$HOSTNAME_VAR" ]      && echo "  > HOST : $HOSTNAME_VAR"
 fi
+
+run_packages
 
 echo "Initializing Chezmoi..."
 # Change to HOME to avoid chezmoi scanning current directory for dotfiles
@@ -387,4 +833,13 @@ if [ -n "$BW_PASSWORD" ]; then
     unset BW_PASSWORD
 fi
 
-echo -e "\n[DONE] Setup complete! Please reload your shell."
+if [ "${#WARN_LOG[@]}" -gt 0 ]; then
+    echo ""
+    echo "--- Warnings (degraded components) ---"
+    for _w in "${WARN_LOG[@]}"; do
+        echo "  WARN: $_w"
+    done
+fi
+
+echo ""
+echo "[DONE] Setup complete. Please reload your shell."
