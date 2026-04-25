@@ -435,6 +435,113 @@ run_packages() {
     fi
 }
 
+# --- Post-Deploy SSH Operations ---
+# Runs after chezmoi apply; needs no privilege or BW_SESSION.
+post_deploy_ssh() {
+    local ssh_dir="$HOME/.ssh"
+    [ -d "$ssh_dir" ] || return 0
+
+    # Keep only 3 most recent .ssh backups
+    local backup_count
+    backup_count=$(ls -1d "$HOME"/.ssh.backup.* 2>/dev/null | wc -l)
+    if [ "$backup_count" -gt 3 ]; then
+        ls -td "$HOME"/.ssh.backup.* 2>/dev/null | tail -n +4 | xargs rm -rf
+        log_info "ssh-post: removed $((backup_count - 3)) old backup(s)"
+    fi
+
+    # Derive public keys from deployed private keys
+    local keys=("id_ed25519_dotfiles_master" "id_ed25519_dotfiles_server")
+    for key in "${keys[@]}"; do
+        local priv="$ssh_dir/$key"
+        local pub="$priv.pub"
+        if [ ! -f "$priv" ]; then
+            log_skip "pubkey: ${key} private key not found"
+            continue
+        fi
+        if ssh-keygen -y -f "$priv" > "$pub" 2>/dev/null && [ -s "$pub" ]; then
+            chmod 644 "$pub"
+            log_info "pubkey: derived ${key}.pub"
+        else
+            log_warn "pubkey: failed to derive ${key}.pub"
+        fi
+    done
+
+    local latest_backup
+    latest_backup=$(ls -td "$HOME"/.ssh.backup.* 2>/dev/null | head -n1)
+
+    # Merge authorized_keys: append old keys not present in new file
+    local authorized_keys="$ssh_dir/authorized_keys"
+    if [ -f "$authorized_keys" ]; then
+        if [ -n "$latest_backup" ] && [ -f "$latest_backup/authorized_keys" ] && [ -s "$latest_backup/authorized_keys" ]; then
+            cp "$authorized_keys" "$authorized_keys.new"
+            local preserved=0
+            local header_added=false
+            while IFS= read -r line; do
+                [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]] && continue
+                local key_part
+                key_part=$(echo "$line" | awk '{print $1, $2}')
+                if ! grep -qF "$key_part" "$authorized_keys.new"; then
+                    if [ "$header_added" = false ]; then
+                        echo "" >> "$authorized_keys.new"
+                        echo "# Preserved from previous configuration" >> "$authorized_keys.new"
+                        header_added=true
+                    fi
+                    echo "$line" >> "$authorized_keys.new"
+                    preserved=$((preserved + 1))
+                fi
+            done < "$latest_backup/authorized_keys"
+            mv "$authorized_keys.new" "$authorized_keys"
+            chmod 600 "$authorized_keys"
+            log_info "ssh-post: authorized_keys merged (preserved ${preserved} old key(s))"
+        else
+            log_skip "ssh-post: no backup for authorized_keys merge"
+        fi
+    fi
+
+    # Merge SSH config: extract custom Host blocks into config.local
+    local ssh_config="$ssh_dir/config"
+    local ssh_config_local="$ssh_dir/config.local"
+    if [ -f "$ssh_config" ]; then
+        if ! grep -q "Include.*config.local" "$ssh_config"; then
+            printf '\n# Local overrides (not managed by dotfiles)\nInclude ~/.ssh/config.local\n' >> "$ssh_config"
+        fi
+        if [ -n "$latest_backup" ] && [ -f "$latest_backup/config" ]; then
+            local custom_hosts
+            custom_hosts=$(mktemp)
+            local in_custom=false found_custom=false
+            while IFS= read -r line; do
+                if [[ "$line" =~ "# .ssh/config - Managed by Chezmoi" ]] || \
+                   [[ "$line" =~ "# Role-Based Keys" ]] || \
+                   [[ "$line" =~ "# Common Configuration" ]]; then
+                    in_custom=false; continue
+                fi
+                if [[ "$line" =~ ^Host[[:space:]]+(.+)$ ]]; then
+                    local host_name="${BASH_REMATCH[1]}"
+                    if [[ "$host_name" != "*" ]] && \
+                       [[ "$host_name" != "github.com" ]] && \
+                       ! grep -q "^Host[[:space:]]\+${host_name}" "$ssh_config" 2>/dev/null; then
+                        in_custom=true; found_custom=true
+                        echo "$line" >> "$custom_hosts"
+                    else
+                        in_custom=false
+                    fi
+                elif [ "$in_custom" = true ]; then
+                    echo "$line" >> "$custom_hosts"
+                    [[ -z "$line" ]] && in_custom=false
+                fi
+            done < "$latest_backup/config"
+            if [ "$found_custom" = true ] && [ -s "$custom_hosts" ]; then
+                local count
+                count=$(grep -c "^Host " "$custom_hosts" || echo "0")
+                printf '\n# Migrated from previous config\n' >> "$ssh_config_local"
+                cat "$custom_hosts" >> "$ssh_config_local"
+                log_info "ssh-post: ${count} custom Host entry/entries preserved in config.local"
+            fi
+            rm -f "$custom_hosts"
+        fi
+    fi
+}
+
 # --- System Configuration Functions ---
 
 configure_tailscale() {
@@ -1134,6 +1241,8 @@ fi
 if [ -n "$BW_PASSWORD" ]; then
     unset BW_PASSWORD
 fi
+
+post_deploy_ssh
 
 if [ "${#WARN_LOG[@]}" -gt 0 ]; then
     echo ""
