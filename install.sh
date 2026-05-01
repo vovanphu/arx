@@ -990,6 +990,19 @@ if ! command -v bw &> /dev/null; then
         echo "Error: Cannot install Bitwarden CLI -- no supported package manager found (apt/dnf)."
         exit 1
     fi
+
+    # Warm-up: first invocation creates ~/.config/Bitwarden CLI/ and fetches server
+    # config. On a fresh machine the very first call can fail with a connect error
+    # before the data dir is initialized; retry a few times so the next bw call
+    # (login/unlock) sees a ready state.
+    hash -r 2>/dev/null || true
+    for _bw_warmup in 1 2 3; do
+        if bw status >/dev/null 2>&1; then
+            break
+        fi
+        echo "bw warm-up attempt ${_bw_warmup} failed, retrying..."
+        sleep 2
+    done
 fi
 
 # --- Bitwarden Setup ---
