@@ -762,7 +762,7 @@ configure_workstation_fedora() {
     if command -v gsettings >/dev/null 2>&1; then
         gsettings set org.gnome.desktop.interface font-name 'Inter Regular 10'
         gsettings set org.gnome.desktop.interface document-font-name 'Inter Regular 11'
-        gsettings set org.gnome.desktop.interface monospace-font-name 'MonaspaceNeon Nerd Font 11'
+        gsettings set org.gnome.desktop.interface monospace-font-name 'FiraCode Nerd Font Mono 11'
         gsettings set org.gnome.desktop.wm.preferences titlebar-font 'Inter SemiBold 10'
         gsettings set org.gnome.desktop.interface font-hinting 'slight'
         gsettings set org.gnome.desktop.interface font-antialiasing 'rgba'
