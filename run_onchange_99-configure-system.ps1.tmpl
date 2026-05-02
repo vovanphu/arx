@@ -45,16 +45,38 @@ if ($tailscaleBin) {
     }
 }
 
+if ($tailscaleBin) {
+    # Ensure the Tailscale service is running before querying status
+    $svc = Get-Service -Name Tailscale -ErrorAction SilentlyContinue
+    if ($svc -and $svc.Status -ne 'Running') {
+        Write-Host "Starting Tailscale service..." -ForegroundColor Yellow
+        Start-Service -Name Tailscale -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 3
+    }
+
+    try {
+        $status = & $tailscaleBin status --peers=false 2>&1 | Out-String
+    } catch {
+        Write-Warning "Failed to execute Tailscale binary. It may be corrupted."
+        $tailscaleBin = $null
+    }
+}
+
 if ($tailscaleBin -and $status) {
-    
-    if ($status -match "Logged out" -or $status -match "Tailscale is stopped") {
+    $needsAuth = $status -match "Logged out" -or
+                 $status -match "Tailscale is stopped" -or
+                 $status -match "NeedsLogin" -or
+                 $status -match "not running" -or
+                 $status -match "service is not running" -or
+                 $status -match "Failed to connect"
+
+    if ($needsAuth) {
         Write-Host "Tailscale is not logged in. Attempting auto-auth via Bitwarden..." -ForegroundColor Yellow
         if ($env:BW_SESSION) {
             try {
                 $tsKey = bw get password "tailscale-auth-key"
                 if ($tsKey) {
                     Write-Host "Tailscale Auth Key retrieved. Authenticating as '$targetName'..." -ForegroundColor Cyan
-                    # Use --force-reauth to ensure the key is used if already partially logged in
                     & $tailscaleBin up --authkey $tsKey --hostname $targetName --accept-routes --force-reauth
                     Write-Host "Tailscale Connected Successfully!" -ForegroundColor Green
                 }
@@ -65,8 +87,8 @@ if ($tailscaleBin -and $status) {
             Write-Warning "Bitwarden session not active. Skipping Tailscale auto-login."
         }
     } else {
-         Write-Host "Tailscale is already logged in. Updating hostname preference..." -ForegroundColor Green
-         & $tailscaleBin set --hostname $targetName
+        Write-Host "Tailscale is already logged in. Updating hostname preference..." -ForegroundColor Green
+        & $tailscaleBin set --hostname $targetName
     }
 } else {
     Write-Warning "Tailscale binary not found in PATH or standard locations. Skipping auto-config."
