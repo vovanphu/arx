@@ -108,6 +108,8 @@ windows:
     cyclops:
       - "Microsoft.OpenSSH.Beta"
     fenrir: # Gaming workstation (GPU software installed at runtime via hardware detection)
+      # Browser
+      - "Google.Chrome"
       # Game launchers
       - "Valve.Steam"
       - "EpicGames.EpicGamesLauncher"
