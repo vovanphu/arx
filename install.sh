@@ -9,7 +9,6 @@ BITWARDEN_CLI_URL="${BW_CLI_URL:-https://vault.bitwarden.com/download/?app=cli&p
 TAILSCALE_INSTALL_URL="${TAILSCALE_URL:-https://tailscale.com/install.sh}"
 STARSHIP_INSTALL_URL="${STARSHIP_URL:-https://starship.rs/install.sh}"
 NERD_FONT_FIRACODE_URL="${NERD_FONT_FIRACODE_URL:-https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip}"
-NERD_FONT_MONASPACE_URL="${NERD_FONT_MONASPACE_URL:-https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Monaspace.zip}"
 
 # --- Global Settings ---
 # Cleanup function to be called on exit
@@ -256,18 +255,6 @@ install_nerd_fonts() {
     local font_dir="$HOME/.local/share/fonts"
     mkdir -p "$font_dir"
     pkg_install unzip fontconfig
-
-    if [ ! -f "$font_dir/MonaspaceNeonNerdFont-Regular.otf" ]; then
-        log_info "installing Monaspace Nerd Font..."
-        if curl -fLo /tmp/Monaspace.zip "$NERD_FONT_MONASPACE_URL"; then
-            unzip -o -q /tmp/Monaspace.zip -d "$font_dir"
-            rm /tmp/Monaspace.zip
-        else
-            log_warn "nerd-fonts: Monaspace download failed"
-        fi
-    else
-        log_skip "nerd-fonts: Monaspace already installed"
-    fi
 
     if [ ! -f "$font_dir/FiraCodeNerdFont-Regular.ttf" ]; then
         log_info "installing FiraCode Nerd Font..."
