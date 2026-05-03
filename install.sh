@@ -200,10 +200,6 @@ install_packages_ubuntu() {
 
 install_packages_fedora() {
     local dnf_conf="/etc/dnf/dnf.conf"
-    if ! grep -q "^fastestmirror=" "$dnf_conf" 2>/dev/null; then
-        echo "fastestmirror=True" | sudo tee -a "$dnf_conf" > /dev/null
-        log_info "dnf: fastestmirror enabled"
-    fi
     if ! grep -q "^max_parallel_downloads=" "$dnf_conf" 2>/dev/null; then
         echo "max_parallel_downloads=10" | sudo tee -a "$dnf_conf" > /dev/null
         log_info "dnf: max_parallel_downloads=10 enabled"
