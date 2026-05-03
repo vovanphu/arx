@@ -787,6 +787,7 @@ EOF
         log_skip "chrome: already installed"
     fi
 
+    flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo 2>/dev/null || true
     if ! flatpak info com.mattjakeman.ExtensionManager >/dev/null 2>&1; then
         flatpak install -y flathub com.mattjakeman.ExtensionManager 2>/dev/null || \
             log_warn "extension-manager: flatpak install failed"
