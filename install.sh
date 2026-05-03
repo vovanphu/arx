@@ -951,6 +951,12 @@ if [ ! -f "$CHEZMOI_BIN" ]; then
     echo "Installing chezmoi..."
     mkdir -p "$HOME/.local/bin"
     sh -c "$(curl -fsLS "$CHEZMOI_INSTALL_URL")" -- -b "$HOME/.local/bin"
+    hash -r 2>/dev/null || true
+fi
+
+if [ ! -f "$CHEZMOI_BIN" ]; then
+    echo "Error: chezmoi installation failed -- binary not found at $CHEZMOI_BIN"
+    exit 1
 fi
 
 if ! command -v bw &> /dev/null; then
