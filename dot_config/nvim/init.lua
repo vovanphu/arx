@@ -48,7 +48,7 @@ map("<leader>fb", "<cmd>Telescope buffers<CR>")
 require("lazy").setup({
   {
     "nvim-telescope/telescope.nvim",
-    tag = "0.1.8",
+    commit = "a0bbec21143c7bc5f8bb02e0005fa0b982edc026",
     dependencies = { "nvim-lua/plenary.nvim" },
     config = function()
       require("telescope").setup({
