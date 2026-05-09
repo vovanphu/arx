@@ -24,6 +24,10 @@ vim.opt.smartcase = true
 vim.opt.hlsearch = false
 vim.opt.signcolumn = "yes"
 vim.opt.clipboard = "unnamedplus"
+vim.opt.termguicolors = true
+vim.opt.splitright = true
+vim.opt.splitbelow = true
+vim.opt.undofile = true
 
 -- netrw (native file explorer)
 vim.g.netrw_banner = 0
@@ -53,6 +57,21 @@ require("lazy").setup({
     config = function()
       require("telescope").setup({
         defaults = { file_ignore_patterns = { "node_modules", ".git" } },
+      })
+    end,
+  },
+  {
+    "nvim-treesitter/nvim-treesitter",
+    build = ":TSUpdate",
+    event = { "BufReadPost", "BufNewFile" },
+    config = function()
+      require("nvim-treesitter.configs").setup({
+        ensure_installed = {
+          "bash", "go", "javascript", "typescript", "tsx",
+          "json", "lua", "markdown", "python", "yaml", "html", "css",
+        },
+        highlight = { enable = true },
+        indent = { enable = true },
       })
     end,
   },
