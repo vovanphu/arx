@@ -1,0 +1,12 @@
+#!/bin/bash
+# configure-gnome.sh - Managed by Chezmoi
+# Sets GNOME system fonts. Runs only on desktop roles.
+{{- if not .install_desktop_tools }}
+exit 0
+{{- end }}
+
+command -v gsettings >/dev/null 2>&1 || exit 0
+
+gsettings set org.gnome.desktop.interface font-name            "Inter Variable 10"
+gsettings set org.gnome.desktop.interface document-font-name   "Inter Variable 10"
+gsettings set org.gnome.desktop.interface monospace-font-name  "JetBrainsMono Nerd Font 10"
