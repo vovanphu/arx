@@ -9,6 +9,7 @@ BITWARDEN_CLI_URL="${BW_CLI_URL:-https://vault.bitwarden.com/download/?app=cli&p
 TAILSCALE_INSTALL_URL="${TAILSCALE_URL:-https://tailscale.com/install.sh}"
 STARSHIP_INSTALL_URL="${STARSHIP_URL:-https://starship.rs/install.sh}"
 NERD_FONT_FIRACODE_URL="${NERD_FONT_FIRACODE_URL:-https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip}"
+NERD_FONT_JETBRAINS_URL="${NERD_FONT_JETBRAINS_URL:-https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip}"
 
 # --- Global Settings ---
 # Cleanup function to be called on exit
@@ -271,6 +272,18 @@ install_nerd_fonts() {
         fi
     else
         log_skip "nerd-fonts: FiraCode already installed"
+    fi
+
+    if [ ! -f "$font_dir/JetBrainsMonoNerdFont-Regular.ttf" ]; then
+        log_info "installing JetBrainsMono Nerd Font..."
+        if curl -fLo /tmp/JetBrainsMono.zip "$NERD_FONT_JETBRAINS_URL"; then
+            unzip -o -q /tmp/JetBrainsMono.zip -d "$font_dir"
+            rm /tmp/JetBrainsMono.zip
+        else
+            log_warn "nerd-fonts: JetBrainsMono download failed"
+        fi
+    else
+        log_skip "nerd-fonts: JetBrainsMono already installed"
     fi
 
     if command -v fc-cache >/dev/null 2>&1; then
