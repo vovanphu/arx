@@ -9,6 +9,7 @@ TERM = "alacritty"
 
 [window]
 padding = { x = 4, y = 4 }
+dynamic_padding = true
 decorations = "full"
 opacity = 1.0
 startup_mode = "Windowed"
@@ -17,7 +18,7 @@ startup_mode = "Windowed"
 normal = { family = "JetBrainsMono Nerd Font", style = "Regular" }
 bold   = { family = "JetBrainsMono Nerd Font", style = "Bold" }
 italic = { family = "JetBrainsMono Nerd Font", style = "Italic" }
-size = 11.0
+size = 10.0
 
 [scrolling]
 # tmux manages scrollback -- keep this low to avoid double buffering
