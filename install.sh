@@ -331,7 +331,7 @@ EOF
 # --- Package Install: Purpose Layers ---
 install_packages_workstation() {
     [ "$IS_WORKSTATION" = "true" ] || return 0
-    pkg_install neovim ripgrep fzf zoxide
+    pkg_install neovim ripgrep fzf zoxide alacritty
     if ! command -v starship >/dev/null 2>&1; then
         curl -sS "$STARSHIP_INSTALL_URL" | sh -s -- -y || log_warn "starship: install failed"
     else
