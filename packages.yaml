@@ -257,6 +257,12 @@ linux:
       fedora: "zoxide"
       default: "zoxide"
 
+    tmux:
+      debian: "tmux"
+      ubuntu: "tmux"
+      fedora: "tmux"
+      default: "tmux"
+
   # Service name mappings
   service_mappings:
     # Debian family → Fedora family
@@ -381,6 +387,7 @@ linux:
     common:
       - "git"
       - "curl"
+      - "tmux"
     extras: # Installed if NOT 'server' role
       - "neovim"
       - "ripgrep"
@@ -448,6 +455,7 @@ linux:
     common:
       - "git"
       - "curl"
+      - "tmux"
     extras: # Installed if NOT 'server' role
       - "neovim"
       - "ripgrep"
