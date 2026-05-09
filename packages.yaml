@@ -85,6 +85,7 @@ windows:
     - "Starship.Starship"
     - "ajeetdsouza.zoxide"
     - "DEVCOM.JetBrainsMonoNerdFont"
+    - "Alacritty.Alacritty"
   roles:
     centaur: # Formerly Commander (Chiron the Wise)
       - "Microsoft.VisualStudioCode"
@@ -394,6 +395,7 @@ linux:
       - "fzf"
       - "zoxide"
       - "starship"
+      - "alacritty"
     roles:
       centaur: # Formerly Commander
         - "ansible"
@@ -462,6 +464,7 @@ linux:
       - "fzf"
       - "zoxide"
       - "starship"
+      - "alacritty"
     roles:
       centaur: # Formerly Commander
         - "ansible"
