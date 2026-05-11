@@ -167,6 +167,8 @@ Prefix: `C-a` (Ctrl+a, thả ra, rồi bấm phím tiếp theo).
 | `prefix + r` | Reload `~/.tmux.conf` |
 | `prefix + $` | Rename session |
 | `prefix + ?` | List all keybindings |
+| `prefix + .` | Change window index number |
+| `prefix + :move-window -t <n>` | Move window to position n (`999` = end) |
 
 **Typical SSH workflow**
 
