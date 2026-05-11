@@ -110,6 +110,77 @@ All 10 roles are centrally defined with capabilities in [`.chezmoi.yaml.tmpl`](.
 *   **🎯 Zero Hardcoded Roles**: All templates use capability checks (maintainable, no copy-paste errors)
 *   **🔍 Comprehensive Testing**: Full SSH flow review with security audit trail
 
+## 🖥️ Tools
+
+### tmux
+
+Prefix: `C-a` (Ctrl+a, thả ra, rồi bấm phím tiếp theo).
+
+**Session**
+
+| Command | Action |
+| :--- | :--- |
+| `tmux` | New session (auto name) |
+| `tmux new -s <name>` | New session with name |
+| `tmux ls` | List sessions |
+| `tmux a` | Attach to last session |
+| `tmux a -t <name>` | Attach to named session |
+| `prefix + d` | Detach (session stays alive) |
+
+**Window (tab)**
+
+| Key | Action |
+| :--- | :--- |
+| `prefix + c` | New window |
+| `prefix + ,` | Rename window |
+| `prefix + n` / `p` | Next / previous window |
+| `prefix + 0..9` | Jump to window by number |
+| `prefix + w` | List windows (j/k to navigate) |
+| `prefix + &` | Close window |
+
+**Pane (split)**
+
+| Key | Action |
+| :--- | :--- |
+| `prefix + \|` | Vertical split |
+| `prefix + -` | Horizontal split |
+| `Alt + h/j/k/l` | Move between panes (no prefix) |
+| `prefix + H/J/K/L` | Resize pane |
+| `prefix + z` | Zoom pane (toggle fullscreen) |
+| `prefix + x` | Close pane |
+
+**Copy mode** — enter with `prefix + [`, exit with `q`
+
+| Key | Action |
+| :--- | :--- |
+| `h/j/k/l` | Navigate |
+| `C-u` / `C-d` | Page up / down |
+| `/` | Search |
+| `v` | Begin selection |
+| `y` | Copy and exit |
+| `prefix + ]` | Paste |
+
+**Other**
+
+| Key | Action |
+| :--- | :--- |
+| `prefix + r` | Reload `~/.tmux.conf` |
+| `prefix + $` | Rename session |
+| `prefix + ?` | List all keybindings |
+
+**Typical SSH workflow**
+
+```bash
+ssh cyclops
+tmux a || tmux new -s work   # attach or create
+# work across multiple windows/panes
+# disconnect or lose connection
+ssh cyclops
+tmux a                        # everything still there
+```
+
+---
+
 ## ❓ Troubleshooting
 
 ### Factory Reset (Re-select Role/Hostname)
