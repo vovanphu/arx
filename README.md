@@ -104,6 +104,7 @@ All 10 roles are centrally defined with capabilities in [`.chezmoi.yaml.tmpl`](.
 *   **🔄 Self-Healing**: Automatically derives SSH public keys (`.pub`) whenever private keys change
 *   **🎨 GUI Ready**: Automatically installs **FiraCode Nerd Font** on Windows and Linux (workstation roles)
 *   **🐚 Unified Shell**: Starship prompt & aliases consistent across PowerShell and Bash
+*   **💾 Persistent tmux**: `tmux-resurrect` + `tmux-continuum` on every machine with tmux (cloned without TPM). Auto-saves session snapshots every 15 min; **auto-restore is off** — restore on demand, then list & attach
 
 ### 📊 Quality & Consistency
 *   **✅ 100% Platform Parity**: Identical behavior on Linux and Windows (verified via [SSH_FLOW_REVIEW.md](SSH_FLOW_REVIEW.md))
@@ -169,6 +170,28 @@ Prefix: `C-a` (Ctrl+a, thả ra, rồi bấm phím tiếp theo).
 | `prefix + ?` | List all keybindings |
 | `prefix + .` | Change window index number |
 | `prefix + :move-window -t <n>` | Move window to position n (`999` = end) |
+
+**Persistence (resurrect + continuum)**
+
+Sessions, windows, panes (and pane contents) survive a reboot. Snapshots are
+saved automatically every 15 min, but **nothing is restored automatically** —
+you bring sessions back only when you want them, then list and attach as usual.
+
+| Key | Action |
+| :--- | :--- |
+| `prefix + C-s` | Save snapshot now |
+| `prefix + C-r` | Restore last snapshot |
+
+```bash
+# after a reboot / fresh login
+tmux a 2>/dev/null || tmux        # start a tmux server
+# prefix + C-r                    # restore the saved sessions
+tmux ls                           # list what came back
+tmux a -t <name>                  # attach to one
+```
+
+Plugins are cloned to `~/.tmux/plugins` automatically by `chezmoi apply` (no
+TPM) on every machine that has tmux.
 
 **Typical SSH workflow**
 
